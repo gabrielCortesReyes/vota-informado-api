@@ -1,0 +1,29 @@
+# Local: API + PostgreSQL →  docker compose up --build  →  http://localhost:8000/docs
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: vota_informado
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: .
+    environment:
+      PORT: "8000"
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/vota_informado
+      APP_SECRET_KEY: ${APP_SECRET_KEY:-solo-para-desarrollo}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

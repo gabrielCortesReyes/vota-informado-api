@@ -1,0 +1,31 @@
+# Despliegue a Cloud Run:
+#   gcloud builds submit --config cloudbuild.yaml --substitutions=_CLOUDSQL=proyecto:region:instancia
+# Secretos esperados en Secret Manager: app-secret-key, postgres-password
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "gcr.io/$PROJECT_ID/${_SERVICE}:$BUILD_ID", "."]
+  - name: gcr.io/cloud-builders/docker
+    args: ["push", "gcr.io/$PROJECT_ID/${_SERVICE}:$BUILD_ID"]
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=gcr.io/$PROJECT_ID/${_SERVICE}:$BUILD_ID
+      - --region=${_REGION}
+      - --allow-unauthenticated
+      - --memory=512Mi
+      - --add-cloudsql-instances=${_CLOUDSQL}
+      - --set-env-vars=PGSQL_HOSTNAME=/cloudsql/${_CLOUDSQL},PGSQL_USERNAME=${_DB_USER},PGSQL_DBNAME=${_DB_NAME}
+      - --set-secrets=APP_SECRET_KEY=app-secret-key:latest,PGSQL_PASSWORD=postgres-password:latest
+
+images:
+  - gcr.io/$PROJECT_ID/${_SERVICE}:$BUILD_ID
+
+substitutions:
+  _SERVICE: vota-informado
+  _REGION: us-central1
+  _CLOUDSQL: ""
+  _DB_USER: vota_bien_user
+  _DB_NAME: vota_bien

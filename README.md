@@ -1,0 +1,181 @@
+# 🗳️ Vota Informado API
+
+API REST en JSON con la información de la **Cámara de Diputadas y Diputados de Chile**
+(proyectos de ley, votaciones, diputados, sesiones, asistencia y catálogos) y una capa de
+**participación ciudadana**: cuentas de usuario, ficha de cada diputado y senador con descripción
+de Wikipedia, comentarios, calificaciones de 1 a 5 y encuestas ("¿votaste por él?", "¿volverías a votar?").
+
+- Los datos legislativos se consultan **en vivo** a [opendata.camara.cl](https://opendata.camara.cl/)
+  con caché en memoria (1 hora por defecto).
+- En la base se guardan los usuarios, el **padrón** de parlamentarios y partidos (para poder
+  comentarlos y calificarlos) y la participación.
+
+## Inicio rápido
+
+```bash
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+Abre **http://localhost:8000/docs** (Swagger) para ver y probar todos los endpoints.
+
+Carga el padrón de parlamentarios (partidos, diputados, senadores y Wikipedia) y crea tu administrador:
+
+```bash
+python -m app.cli sincronizar            # agrega --sin-wikipedia para ir más rápido
+# crea tu cuenta con POST /auth/register y luego:
+python -m app.cli admin tu@correo.cl
+```
+
+Conviene repetir `sincronizar` cada cierto tiempo (por ejemplo, con Cloud Scheduler llamando a
+`POST /admin/sincronizar`), para reflejar cambios de partido o reemplazos.
+Sin configuración usa SQLite (`vota_informado.db`). Con Docker y PostgreSQL:
+
+```bash
+docker compose up --build
+```
+
+Pruebas (no necesitan internet, simulan la Cámara): `pip install -r requirements-dev.txt && pytest -q`
+
+## Endpoints
+
+Todas las rutas de datos son `GET`, públicas, y devuelven el XML de la Cámara convertido a JSON
+(mismos nombres de campo: `Id`, `Nombre`, `ApellidoPaterno`, `FechaInicio`, …).
+Los campos con atributo, como `<Sexo Valor="0">Femenino</Sexo>`, quedan como `{"Valor": 0, "Nombre": "Femenino"}`.
+
+| Endpoint | Servicio de la Cámara |
+|---|---|
+| **Proyectos de ley** | |
+| `/proyectos/mensajes?anno=2025` | WSLegislativo `retornarMensajesXAnno` |
+| `/proyectos/mociones?anno=2025` | WSLegislativo `retornarMocionesXAnno` |
+| `/proyectos/{boletin}` | WSLegislativo `retornarProyectoLey` |
+| `/proyectos/{boletin}/votaciones` | WSLegislativo `retornarVotacionesXProyectoLey` |
+| `/proyectos/{boletin}/documento` | WSLegislativo `retornarDocumentoIngresoProyectoLey` |
+| `/proyectos/ley/{numero_ley}` | WSLegislativo `retornarProyectosLeyxNumeroLey` |
+| **Votaciones** | |
+| `/votaciones?anno=2025` | WSLegislativo `retornarVotacionesXAnno` |
+| `/votaciones/{id}` | WSLegislativo `retornarVotacionDetalle` |
+| **Legislaturas y períodos** | |
+| `/legislaturas`, `/legislaturas/actual` | WSLegislativo `retornarLegislaturas`, `retornarLegislaturaActual` |
+| `/periodos`, `/periodos/actual` | WSLegislativo `retornarPeriodosLegislativos`, `retornarPeriodoLegislativoActual` |
+| `/materias` | WSLegislativo `retornarMaterias` |
+| `/tramites/constitucionales`, `/tramites/reglamentarios` | WSLegislativo `retornarTramites…` |
+| **Diputados** | |
+| `/diputados` | WSDiputado `retornarDiputados` |
+| `/diputados/actuales` | WSDiputado `retornarDiputadosPeriodoActual` |
+| `/diputados/periodo/{periodo_id}` | WSDiputado `retornarDiputadosXPeriodo` |
+| `/diputados/{id}` | WSDiputado `retornarDiputado` |
+| **Sesiones de Sala** | |
+| `/sesiones?anno=2025` | WSSala `retornarSesionesXAnno` |
+| `/sesiones/legislatura/{id}` | WSSala `retornarSesionesXLegislatura` |
+| `/sesiones/{id}` (votaciones y asistencia) | WSSala `retornarSesionAsistencia` |
+| **Catálogos** (24) | |
+| `/catalogos` (lista) y `/catalogos/{nombre}` | WSComun `retornar…` |
+
+Catálogos: `comunas`, `distritos`, `regiones`, `provincias`, `ministerios`, `partidos-politicos`,
+`tipos-asistencia`, `tipos-camara-origen`, `tipos-estado`, `tipos-estado-acuerdos-resoluciones`,
+`tipos-estado-sesion-comision`, `tipos-estado-sesion-sala`, `tipos-iniciativa-proyecto-ley`,
+`tipos-justificaciones-inasistencia`, `tipos-legislatura`, `tipos-opcion-voto`, `tipos-quorum-votacion`,
+`tipos-resultado-votacion`, `tipos-sesion-comision`, `tipos-sesion-sala`, `tipos-sexo`,
+`tipos-titular-asistencia`, `tipos-votacion`, `tipos-votacion-proyecto-ley`.
+
+**Cuentas de usuario**
+
+| Método | Ruta | |
+|---|---|---|
+| POST | `/auth/register` | `{"fiscal_id" (RUT), "names", "last_names", "email", "password" (mín. 8), "phone_number"?, "commune_id"?}` → tokens |
+| POST | `/auth/login` | `{"username","password"}` → access + refresh token (máx. 5/min) |
+| POST | `/auth/refresh-token` | `{"refresh_token"}` → tokens nuevos |
+| POST | `/auth/change-password` | `{"new_password"}` (requiere token) |
+| POST | `/auth/restore-password` | Clave temporal por WhatsApp (requiere `WPP_ENDPOINT`) |
+| GET | `/user/me` | Perfil del usuario |
+| GET/POST | `/user/me/preferences` | Comuna (`Numero` de `/catalogos/comunas`) |
+
+**Parlamentarios y participación** (leer es público; escribir requiere token)
+
+| Método | Ruta | |
+|---|---|---|
+| GET | `/partidos` | Partidos con número de diputados y senadores en ejercicio |
+| GET | `/parlamentarios?camara=senador&partido_id=&q=` | Buscar diputados y senadores |
+| GET | `/parlamentarios/{id}` | Ficha: partido, región, contacto, descripción y foto de Wikipedia, promedio de calificación |
+| GET/POST | `/parlamentarios/{id}/comentarios` | Ver y dejar comentarios (se muestra "María S.") |
+| PUT/DELETE | `/comentarios/{id}` | Editar o borrar un comentario propio |
+| PUT | `/parlamentarios/{id}/calificacion` | `{"score": 1-5}`, una por usuario (reenviar la cambia) |
+| GET | `/parlamentarios/{id}/calificacion` (y `/mia`) | Promedio y distribución |
+| GET | `/encuestas`, `/encuestas/{id}` | Encuestas activas y sus preguntas |
+| POST | `/encuestas/{id}/respuestas` | `{"parliamentarian_id", "answers": [{"question_id", "value"}]}` |
+| GET | `/encuestas/{id}/resultados?parliamentarian_id=` | % de "sí", promedios y conteos |
+| GET | `/encuestas/{id}/mis-respuestas` | Lo que respondió el usuario |
+
+Al arrancar se crea la encuesta **"Evaluación de tu parlamentario"**: ¿Votaste por él/ella?,
+¿Volverías a votar por él/ella? y ¿Apruebas su desempeño?. Tipos de pregunta: `si_no`, `escala` (1-5),
+`opcion` (con lista de opciones) y `texto` (no se publica en resultados).
+
+**Administración** (usuario con `is_admin`)
+
+| Método | Ruta | |
+|---|---|---|
+| POST | `/admin/sincronizar?wikipedia=true` | Recarga partidos, diputados, senadores y descripciones |
+| POST | `/admin/encuestas` | Crear una encuesta nueva |
+| PATCH | `/admin/encuestas/{id}` | `{"active": false}` para cerrarla |
+| PATCH | `/admin/comentarios/{id}` | `{"hidden": true}` para ocultar un comentario |
+
+Rutas con token: header `Authorization: Bearer <access_token>`.
+Otras: `/health`, `/cache/clear` (requiere token).
+
+Errores: `404` si la Cámara no tiene el dato, `502` si la Cámara no responde o rechaza los parámetros.
+
+## Configuración
+
+Ver `.env.example`. Lo importante:
+
+- `APP_SECRET_KEY`: clave JWT, **obligatoria en producción**.
+- `DATABASE_URL` o `PGSQL_*`: base de usuarios (si no, SQLite local). Las tablas se crean solas al arrancar.
+- `CACHE_TTL_SECONDS`: cuánto se guarda en caché cada respuesta de la Cámara (3600).
+- `WIKIPEDIA_USER_AGENT`: identifica la app ante Wikipedia (lo exige su política de uso).
+
+**Fuentes del padrón:** diputados y partidos desde la Cámara (`retornarDiputadosPeriodoActual`,
+`retornarPartidosPoliticos`), senadores desde el Senado (`senadores_vigentes.php`) y descripciones desde
+Wikipedia en español. Solo se acepta un artículo de Wikipedia si su título tiene el nombre y apellido
+del parlamentario y el texto habla de un político chileno; los demás quedan sin descripción. Los textos
+de Wikipedia son CC BY-SA 4.0: la app debe mostrar el enlace (`wikipedia_url`) junto a la descripción.
+
+## Despliegue (Cloud Run)
+
+```bash
+gcloud builds submit --config cloudbuild.yaml --substitutions=_CLOUDSQL=PROYECTO:REGION:INSTANCIA
+```
+
+Necesita en Secret Manager `app-secret-key` y `postgres-password`.
+
+## Estructura
+
+```
+app/
+├── main.py          # arma la app y registra las rutas
+├── config.py        # variables de entorno
+├── database.py      # SQLAlchemy
+├── models.py        # usuarios, padrón, comentarios, calificaciones, encuestas
+├── schemas.py       # validación de entrada/salida
+├── security.py      # contraseñas, JWT, rate limit, rol admin
+├── rut.py           # validación de RUT
+├── sync.py          # carga del padrón (Cámara, Senado, Wikipedia)
+├── cli.py           # python -m app.cli sincronizar | admin
+├── camara/
+│   ├── client.py    # única puerta hacia opendata.camara.cl (+ caché)
+│   └── xml.py       # XML → JSON
+└── routes/          # legislativo, diputados, sala, catalogos, parlamentarios,
+                     # encuestas, auth, usuario, admin
+tests/               # pytest, sin red (Cámara, Senado y Wikipedia simulados)
+```
+
+## Historia
+
+Vota Informado nace del proyecto Democracia Inteligente: reemplaza a `democracia-inteligente` (Vota Bien, que copiaba los datos a PostgreSQL con
+un programador de tareas) y a `democracia-inteligente-app-api` (usuarios). Se conservan los mismos
+nombres de tablas de usuarios y las rutas `/auth/*` y `/user/me*` de la app-api.
+
+## Licencia
+
+MIT, ver [LICENSE](LICENSE).
