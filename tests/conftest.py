@@ -31,11 +31,7 @@ RESPUESTAS = {
         <Distrito><Numero>10</Numero></Distrito></DiputadoPeriodo>
       <DiputadoPeriodo><FechaInicio>2022-03-11T00:00:00</FechaInicio><FechaTermino xsi:nil="true"/>
         <Diputado><Id>1011</Id><Nombre>Rosa</Nombre><ApellidoPaterno>Vera</ApellidoPaterno><Militancias/></Diputado>
-        <Distrito><Numero>8</Numero></Distrito></DiputadoPeriodo></DiputadosPeriodoColeccion>""",
-    "retornarDistritos": f"""<DistritosColeccion {NS}>
-      <Distrito><Numero>10</Numero><Comunas><Comuna><Numero>13120</Numero><Nombre>Ñuñoa</Nombre></Comuna></Comunas></Distrito>
-      <Distrito><Numero>8</Numero><Comunas><Comuna><Numero>13101</Numero><Nombre>Maipú</Nombre></Comuna>
-        <Comuna><Numero>13102</Numero><Nombre>Cerrillos</Nombre></Comuna></Comunas></Distrito></DistritosColeccion>""",
+        <Distrito><Numero>51</Numero></Distrito></DiputadoPeriodo></DiputadosPeriodoColeccion>""",
     "retornarVotacionDetalle": f"""<Votacion {NS}><Id>40000</Id><Descripcion>Boletín N° 1-07</Descripcion>
       <Fecha>2026-11-04T13:30:14</Fecha><TotalSi>1</TotalSi><TotalNo>1</TotalNo><Resultado Valor="1">Aprobado</Resultado>
       <Votos><Voto><Diputado><Id>1009</Id></Diputado><OpcionVoto Valor="1">Afirmativo</OpcionVoto></Voto>
@@ -49,7 +45,10 @@ RESPUESTAS = {
     "retornarSesionAsistencia": f"""<SesionSala {NS}><Id>4000</Id><Numero>10</Numero>
       <ListadoAsistencia><Asistencia><TipoAsistencia Valor="1">Asiste</TipoAsistencia><Diputado><Id>1009</Id></Diputado></Asistencia></ListadoAsistencia>
       </SesionSala>""",
-    "retornarComunas": f"""<ComunasColeccion {NS}><Comuna><Numero>13120</Numero><Nombre>Ñuñoa</Nombre></Comuna></ComunasColeccion>""",
+    # nombres como los escribe la Cámara; el distrito sale de app/data/comunas_distrito.json
+    "retornarComunas": f"""<ComunasColeccion {NS}><Comuna><Numero>13120</Numero><Nombre>Ñuñoa</Nombre></Comuna>
+      <Comuna><Numero>13101</Numero><Nombre>MAIPU</Nombre></Comuna><Comuna><Numero>13102</Numero><Nombre>CERRILLOS</Nombre></Comuna>
+      </ComunasColeccion>""",
     "retornarLegislaturaActual": f"""<Legislatura {NS}><Id>55</Id><Numero>373</Numero></Legislatura>""",
     "retornarPartidosPoliticos": f"""<PartidosColeccion {NS}><Partido><Id>12</Id><Nombre>Partido X</Nombre><Alias>PX</Alias></Partido>
       <Partido><Id>13</Id><Nombre>Partido Y</Nombre><Alias>PY</Alias></Partido></PartidosColeccion>""",
@@ -133,6 +132,8 @@ def api():
     db.commit(); db.close()
     with TestClient(app) as c:
         camara._client = httpx.AsyncClient(transport=httpx.MockTransport(camara_falsa))
+        # 1011 trae un distrito antiguo (51): se toma el de app/data, aquí fijado para los Id de prueba
+        sync.diputados_distrito = lambda: {"1011": 8}
         sync._cliente = lambda **kw: httpx.AsyncClient(transport=httpx.MockTransport(red_falsa), **kw)
         camara.limpiar_cache()
         yield c

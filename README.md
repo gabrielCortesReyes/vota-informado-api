@@ -146,8 +146,11 @@ Wikipedia en español. Solo se acepta un artículo de Wikipedia si su título ti
 del parlamentario y el texto habla de un político chileno; los demás quedan sin descripción. Los textos
 de Wikipedia son CC BY-SA 4.0: la app debe mostrar el enlace (`wikipedia_url`) junto a la descripción.
 
-**Distritos:** `/catalogos/comunas` agrega a cada comuna su `Distrito`, sacado de `retornarDistritos`
-(la Cámara no lo trae en el catálogo de comunas). Cada diputado guarda su distrito desde `DiputadoPeriodo/Distrito`.
+**Distritos:** se usan los 28 distritos vigentes (Ley 20.840). `/catalogos/comunas` agrega a cada comuna su
+`Distrito` cruzando `retornarComunas` por nombre con `app/data/comunas_distrito.json` (`retornarDistritos` de la Cámara
+trae aún los 60 distritos antiguos). Cada diputado guarda su distrito desde `DiputadoPeriodo/Distrito` si viene y es
+1-28; si no, desde `app/data/diputados_distrito.json` (Id de la Cámara → distrito, período 2026-2030). Ambos JSON se
+generaron desde Wikipedia ("Distritos electorales de Chile" y "LVII periodo legislativo del Congreso Nacional de Chile").
 
 **Logos de partidos:** se buscan en Wikipedia en español → Wikidata (propiedad P154, logo vigente, país Chile)
 → Wikimedia Commons, que entrega un PNG de 256 px, la licencia y el autor (`logo_license`, `logo_author`,

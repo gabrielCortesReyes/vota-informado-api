@@ -222,3 +222,14 @@ def test_distrito_voto_y_logos(api):
     # cambiarse a una comuna de otro distrito borra el voto
     r = api.post("/user/me/preferences", headers=h, json={"commune_id": 13101}).json()
     assert r["district_vote"] is None and r["voted_parliamentarian_id"] is None
+
+
+def test_mapas_de_distritos_vigentes():
+    from app.distritos import comunas_distrito, diputados_distrito, normalizar
+    comunas = comunas_distrito()
+    for nombre, distrito in {"HUALPÉN": 20, "PUENTE ALTO": 12, "SANTIAGO": 10, "ANTARTICA": 28, "Ñuñoa": 10,
+                             "MAIPU": 8, "CERRILLOS": 8, 'O"HIGGINS': 27, "LLAY-LLAY": 6}.items():
+        assert comunas[normalizar(nombre)] == distrito, nombre
+    assert set(comunas.values()) == set(range(1, 29))
+    dips = diputados_distrito()
+    assert len(dips) == 155 and set(dips.values()) == set(range(1, 29))

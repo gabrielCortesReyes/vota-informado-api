@@ -1,8 +1,15 @@
 """Relación comuna → distrito y votos de los diputados de un distrito.
 
-La Cámara entrega el catálogo de comunas sin distrito; el de distritos (WSComun
-`retornarDistritos`) trae las comunas de cada uno, así que de ahí se arma el mapa.
+Se usan los 28 distritos vigentes (Ley 20.840). El WSComun `retornarDistritos` de la Cámara
+trae todavía los 60 distritos antiguos y `retornarDiputadosPeriodoActual` no trae distrito,
+así que ambos mapas vienen de app/data (generados desde Wikipedia "Distritos electorales de
+Chile" y "LVII periodo legislativo del Congreso Nacional de Chile").
 """
+import json
+import re
+import unicodedata
+from functools import lru_cache
+from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import HTTPException
@@ -11,6 +18,9 @@ from sqlalchemy.orm import Session, joinedload
 from app.camara.client import consultar
 from app.models import Parliamentarian
 
+DATA = Path(__file__).parent / "data"
+DISTRITOS_VIGENTES = 28
+
 
 def _lista(valor: Any) -> list:
     if valor is None:
@@ -18,15 +28,34 @@ def _lista(valor: Any) -> list:
     return valor if isinstance(valor, list) else [valor]
 
 
+def normalizar(nombre: Any) -> str:
+    """Mayúsculas, sin tildes (Ñ→N) y sin signos: "O'Higgins" y 'O"HIGGINS' quedan iguales."""
+    s = unicodedata.normalize("NFD", str(nombre or "").upper())
+    s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+    return " ".join(re.sub(r"[^A-Z0-9]+", " ", s).split())
+
+
+@lru_cache
+def comunas_distrito() -> dict[str, int]:
+    """{nombre normalizado de comuna: distrito 1-28}"""
+    return json.loads((DATA / "comunas_distrito.json").read_text(encoding="utf-8"))
+
+
+@lru_cache
+def diputados_distrito() -> dict[str, int]:
+    """{Id de diputado en la Cámara: distrito 1-28} del período 2026-2030"""
+    return json.loads((DATA / "diputados_distrito.json").read_text(encoding="utf-8"))
+
+
 async def mapa_comuna_distrito() -> dict[int, int]:
-    """{numero de comuna: numero de distrito}"""
+    """{numero de comuna (retornarComunas): numero de distrito}"""
+    nombres = comunas_distrito()
     mapa: dict[int, int] = {}
-    for d in _lista(await consultar("WSComun", "retornarDistritos")):
-        if not isinstance(d, dict) or d.get("Numero") is None:
-            continue
-        for c in _lista(d.get("Comunas")):
-            if isinstance(c, dict) and c.get("Numero") is not None:
-                mapa[int(c["Numero"])] = int(d["Numero"])
+    for c in _lista(await consultar("WSComun", "retornarComunas")):
+        if isinstance(c, dict) and c.get("Numero") is not None:
+            distrito = nombres.get(normalizar(c.get("Nombre")))
+            if distrito:
+                mapa[int(c["Numero"])] = distrito
     return mapa
 
 

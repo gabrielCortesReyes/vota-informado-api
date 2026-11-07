@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.camara.client import consultar
 from app.config import COMMONS_API, SENADO_SENADORES_URL, WIKIDATA_API, WIKIPEDIA_API, WIKIPEDIA_USER_AGENT
+from app.distritos import DISTRITOS_VIGENTES, diputados_distrito
 from app.models import Parliamentarian, Party
 
 logger = logging.getLogger(__name__)
@@ -86,6 +87,18 @@ def _militancia_actual(militancias) -> dict | None:
     return max(candidatas, key=lambda m: str(m.get("FechaInicio") or ""))
 
 
+def _distrito_diputado(item: dict, diputado_id: int) -> int | None:
+    """Distrito del WS si viene y es uno de los 28 vigentes; si no, el de app/data."""
+    ws = item.get("Distrito") if isinstance(item.get("Distrito"), dict) else {}
+    try:
+        numero = int(ws.get("Numero"))
+    except (TypeError, ValueError):
+        numero = None
+    if numero and 1 <= numero <= DISTRITOS_VIGENTES:
+        return numero
+    return diputados_distrito().get(str(diputado_id))
+
+
 async def sincronizar_diputados(db: Session) -> int:
     periodo = await consultar("WSDiputado", "retornarDiputadosPeriodoActual") or []
     vistos = set()
@@ -94,7 +107,7 @@ async def sincronizar_diputados(db: Session) -> int:
         if not d.get("Id"):
             continue
         mil = _militancia_actual(d.get("Militancias"))
-        distrito = (item.get("Distrito") or {}) if isinstance(item.get("Distrito"), dict) else {}
+        distrito = _distrito_diputado(item, int(d["Id"]))
         partido = (mil or {}).get("Partido") or {}
         sexo = d.get("Sexo")
         _upsert(
@@ -105,7 +118,7 @@ async def sincronizar_diputados(db: Session) -> int:
             gender=sexo.get("Nombre") if isinstance(sexo, dict) else sexo,
             birth_date=str(d["FechaNacimiento"])[:10] if d.get("FechaNacimiento") else None,
             party=_party(db, partido.get("Nombre"), partido.get("Alias"), partido.get("Id")),
-            district=str(distrito["Numero"]) if distrito.get("Numero") is not None else None,
+            district=str(distrito) if distrito else None,
         )
         vistos.add(int(d["Id"]))
     _marcar_no_vigentes(db, "diputado", vistos)
