@@ -6,13 +6,13 @@
 import asyncio
 import sys
 
-from app.database import Base, SessionLocal, engine
+from app.database import SessionLocal, init_db
 from app.models import UserCredentials
 from app.sync import sincronizar_todo
 
 
 def main(args: list[str]) -> None:
-    Base.metadata.create_all(bind=engine)
+    init_db()
     db = SessionLocal()
     try:
         if args[:1] == ["sincronizar"]:

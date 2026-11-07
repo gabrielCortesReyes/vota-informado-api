@@ -33,9 +33,11 @@ def _norm(texto: str | None) -> str:
     return re.sub(r"\s+", " ", texto).strip().lower()
 
 
-def _party(db: Session, name: str | None, alias: str | None = None, external_id: int | None = None) -> Party | None:
+def _party(db: Session, name: str | None, alias: str | None = None, external_id=None) -> Party | None:
     if not name:
         return None
+    # La Cámara identifica los partidos con siglas ("PC", "IND"); el XML puede traerlas como número
+    external_id = (str(external_id).strip() or None) if external_id is not None else None
     party = None
     if external_id is not None:
         party = db.query(Party).filter(Party.external_id == external_id).first()

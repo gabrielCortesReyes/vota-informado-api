@@ -14,7 +14,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from app.camara import client
-from app.database import Base, SessionLocal, engine
+from app.database import SessionLocal, init_db
 from app.routes import admin, auth, catalogos, diputados, encuestas, legislativo, parlamentarios, sala, usuario
 from app.security import current_user, limiter
 
@@ -23,7 +23,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)  # crea las tablas que falten
+    init_db()  # crea las tablas que falten
     db = SessionLocal()
     try:
         encuestas.asegurar_encuesta_por_defecto(db)

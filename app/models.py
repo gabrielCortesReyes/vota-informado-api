@@ -76,7 +76,7 @@ class Party(Base):
     __tablename__ = "parties"
 
     id = Column(Integer, primary_key=True)
-    external_id = Column(Integer, nullable=True, unique=True)  # Id del partido en la Cámara
+    external_id = Column(String(20), nullable=True, unique=True)  # Id del partido en la Cámara (sigla, p. ej. "PC")
     name = Column(String(150), nullable=False, unique=True)
     alias = Column(String(30), nullable=True)
 
