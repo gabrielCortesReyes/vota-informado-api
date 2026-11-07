@@ -66,6 +66,11 @@ class UserPreferences(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
     commune_id = Column(Integer, nullable=True)  # "Numero" de /catalogos/comunas
+    # A quién votó en la última elección de diputados de su distrito
+    district_vote = Column(String(20), nullable=True)  # "diputado" | "otro" | "no_voto" | "no_responde"
+    voted_parliamentarian_id = Column(Integer, ForeignKey("parliamentarians.id"), nullable=True)
+
+    voted_parliamentarian = relationship("Parliamentarian")
 
     user = relationship("User", back_populates="preferences")
 
@@ -79,6 +84,12 @@ class Party(Base):
     external_id = Column(String(20), nullable=True, unique=True)  # Id del partido en la Cámara (sigla, p. ej. "PC")
     name = Column(String(150), nullable=False, unique=True)
     alias = Column(String(30), nullable=True)
+    # Logo desde Wikidata (P154) / Wikimedia Commons, con su licencia y autor
+    logo_url = Column(String(500), nullable=True)
+    logo_license = Column(String(100), nullable=True)
+    logo_author = Column(String(300), nullable=True)
+    logo_source_url = Column(String(500), nullable=True)
+    logo_checked_at = Column(TIMESTAMP, nullable=True)
 
     parliamentarians = relationship("Parliamentarian", back_populates="party")
 

@@ -43,11 +43,11 @@ def test_sincronizacion(api):
         resultado = asyncio.run(sync.sincronizar_todo(db))
     finally:
         db.close()
-    assert resultado["partidos"] == 2 and resultado["diputados"] == 1 and resultado["senadores"] == 1
-    assert resultado["wikipedia"] == {"revisados": 2, "encontrados": 1}
+    assert resultado["partidos"] == 2 and resultado["diputados"] == 3 and resultado["senadores"] == 1
+    assert resultado["wikipedia"] == {"revisados": 4, "encontrados": 1}
 
     partidos = {p["alias"]: p for p in api.get("/partidos").json()}
-    assert partidos["PX"]["diputados"] == 1 and partidos["PY"]["senadores"] == 1
+    assert partidos["PX"]["diputados"] == 1 and partidos["PX"]["logo_url"] and partidos["PY"]["senadores"] == 1
 
     todos = api.get("/parlamentarios").json()
     assert {p["chamber"] for p in todos} == {"diputado", "senador"}
@@ -64,7 +64,7 @@ def test_sincronizacion(api):
     db = SessionLocal()
     try:
         asyncio.run(sync.sincronizar_todo(db, wikipedia=False))
-        assert db.query(Parliamentarian).count() == 2
+        assert db.query(Parliamentarian).count() == 4
     finally:
         db.close()
 
@@ -163,3 +163,62 @@ def test_limite_de_intentos(api):
     codes = [api.post("/auth/login", json={"username": "z@z.cl", "password": "x"}).status_code for _ in range(6)]
     assert codes[:5] == [401] * 5 and codes[5] == 429
     limiter.reset()
+
+
+def test_distrito_voto_y_logos(api):
+    db = SessionLocal()
+    try:
+        asyncio.run(sync.sincronizar_todo(db))
+    finally:
+        db.close()
+
+    # logo del partido desde Wikidata (P154 vigente) + Commons, con licencia y autor
+    px = {p["alias"]: p for p in api.get("/partidos").json()}["PX"]
+    assert px["logo_url"] == "https://upload.wikimedia.org/256px-px.png"
+    assert px["logo_license"] == "Public domain" and px["logo_author"] == "Partido X"
+    assert px["logo_source_url"].startswith("https://commons.wikimedia.org/wiki/File:")
+    ana = api.get("/parlamentarios", params={"q": "Ana"}).json()[0]
+    assert ana["party"]["logo_url"] and ana["district"] == "10"
+
+    # comunas con distrito y diputados por distrito
+    comunas = {c["Nombre"]: c for c in api.get("/catalogos/comunas").json()}
+    assert comunas["Ñuñoa"]["Distrito"] == 10
+    d10 = api.get("/distritos/10/diputados").json()
+    assert [d["last_name"] for d in d10] == ["Muñoz", "Pérez"]
+    assert len(api.get("/parlamentarios", params={"distrito": 8}).json()) == 1
+    luis = next(d for d in d10 if d["last_name"] == "Muñoz")
+    rosa = api.get("/distritos/8/diputados").json()[0]
+
+    # registro con el diputado votado; debe ser de su distrito
+    limiter.reset()
+    base = {"names": "Paula", "last_names": "Rey", "password": "clave-segura-1", "commune_id": 13120}
+    r = api.post("/auth/register", json={**base, "fiscal_id": "5.126.663-3", "email": "paula@mail.com",
+                                         "voted_parliamentarian_id": rosa["id"]})
+    assert r.status_code == 422 and "distrito 10" in r.text
+    r = api.post("/auth/register", json={**base, "fiscal_id": "5.126.663-3", "email": "paula@mail.com",
+                                         "voted_parliamentarian_id": luis["id"]})
+    assert r.status_code == 201, r.text
+    h = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    prefs = api.get("/user/me/preferences", headers=h).json()
+    assert prefs == {"commune_id": 13120, "district_vote": "diputado", "voted_parliamentarian_id": luis["id"]}
+
+    mio = api.get("/user/me/distrito", headers=h).json()
+    assert mio["distrito"] == 10 and len(mio["diputados"]) == 2
+
+    # votos del distrito en una votación: mi diputado primero, el que no votó queda sin opción
+    v = api.get("/user/me/distrito/votaciones/40000", headers=h).json()
+    assert v["distrito"] == 10 and v["votacion"]["Resultado"]["Nombre"] == "Aprobado"
+    assert v["votos"][0]["es_mi_diputado"] and v["votos"][0]["opcion"] is None
+    assert v["votos"][1]["opcion"]["Nombre"] == "Afirmativo"
+    assert api.get("/user/me/distrito/votaciones/ultima", headers=h).json()["votacion"]["Id"] == 40000
+    publico = api.get("/votaciones/40000/distrito/8").json()
+    assert publico["votos"][0]["opcion"]["Nombre"] == "En Contra" and not publico["votos"][0]["es_mi_diputado"]
+
+    # perfil: cambiar solo el voto mantiene la comuna; 'otro' borra el diputado
+    r = api.post("/user/me/preferences", headers=h, json={"district_vote": "otro"}).json()
+    assert r == {"commune_id": 13120, "district_vote": "otro", "voted_parliamentarian_id": None}
+    assert api.post("/user/me/preferences", headers=h, json={"district_vote": "diputado"}).status_code == 422
+    api.post("/user/me/preferences", headers=h, json={"voted_parliamentarian_id": ana["id"]})
+    # cambiarse a una comuna de otro distrito borra el voto
+    r = api.post("/user/me/preferences", headers=h, json={"commune_id": 13101}).json()
+    assert r["district_vote"] is None and r["voted_parliamentarian_id"] is None

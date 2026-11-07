@@ -25,7 +25,21 @@ RESPUESTAS = {
           <Sexo Valor="0">Femenino</Sexo>
           <Militancias><Militancia><FechaInicio>2020-01-01T00:00:00</FechaInicio>
             <Partido><Id>12</Id><Nombre>Partido X</Nombre><Alias>PX</Alias></Partido></Militancia></Militancias>
-        </Diputado></DiputadoPeriodo></DiputadosPeriodoColeccion>""",
+        </Diputado><Distrito><Numero>10</Numero></Distrito></DiputadoPeriodo>
+      <DiputadoPeriodo><FechaInicio>2022-03-11T00:00:00</FechaInicio><FechaTermino xsi:nil="true"/>
+        <Diputado><Id>1010</Id><Nombre>Luis</Nombre><ApellidoPaterno>Muñoz</ApellidoPaterno><Militancias/></Diputado>
+        <Distrito><Numero>10</Numero></Distrito></DiputadoPeriodo>
+      <DiputadoPeriodo><FechaInicio>2022-03-11T00:00:00</FechaInicio><FechaTermino xsi:nil="true"/>
+        <Diputado><Id>1011</Id><Nombre>Rosa</Nombre><ApellidoPaterno>Vera</ApellidoPaterno><Militancias/></Diputado>
+        <Distrito><Numero>8</Numero></Distrito></DiputadoPeriodo></DiputadosPeriodoColeccion>""",
+    "retornarDistritos": f"""<DistritosColeccion {NS}>
+      <Distrito><Numero>10</Numero><Comunas><Comuna><Numero>13120</Numero><Nombre>Ñuñoa</Nombre></Comuna></Comunas></Distrito>
+      <Distrito><Numero>8</Numero><Comunas><Comuna><Numero>13101</Numero><Nombre>Maipú</Nombre></Comuna>
+        <Comuna><Numero>13102</Numero><Nombre>Cerrillos</Nombre></Comuna></Comunas></Distrito></DistritosColeccion>""",
+    "retornarVotacionDetalle": f"""<Votacion {NS}><Id>40000</Id><Descripcion>Boletín N° 1-07</Descripcion>
+      <Fecha>2026-11-04T13:30:14</Fecha><TotalSi>1</TotalSi><TotalNo>1</TotalNo><Resultado Valor="1">Aprobado</Resultado>
+      <Votos><Voto><Diputado><Id>1009</Id></Diputado><OpcionVoto Valor="1">Afirmativo</OpcionVoto></Voto>
+        <Voto><Diputado><Id>1011</Id></Diputado><OpcionVoto Valor="0">En Contra</OpcionVoto></Voto></Votos></Votacion>""",
     "retornarDiputado": f"""<Diputado {NS}><Id>1009</Id><Nombre>Ana</Nombre><RUT>12345678</RUT><Militancias xsi:nil="true"/></Diputado>""",
     "retornarProyectoLey": f"""<ProyectoLey {NS}><Id>1</Id><NumeroBoletin>11144-07</NumeroBoletin><Nombre>Proyecto</Nombre>
       <Admisible>true</Admisible><Autores><ParlamentarioAutor><Orden>1</Orden><Diputado><Id>1009</Id></Diputado></ParlamentarioAutor></Autores>
@@ -52,8 +66,19 @@ WIKI = {
                   "extract": "Ana Pérez es una abogada y política chilena, diputada desde 2022.",
                   "content_urls": {"desktop": {"page": "https://es.wikipedia.org/wiki/Ana_P%C3%A9rez"}},
                   "thumbnail": {"source": "https://upload.wikimedia.org/ana.jpg"}},
+    "Partido X (Chile)": {"title": "Partido X (Chile)", "type": "standard", "extract": "Partido político chileno."},
+    "Partido X de Venezuela": {"title": "Partido X de Venezuela", "type": "standard", "extract": "Partido venezolano."},
     "Juan Rojas (futbolista)": {"title": "Juan Rojas (futbolista)", "type": "standard",
                                 "extract": "Juan Rojas es un futbolista argentino."},
+}
+def _claim(valor, **extra):
+    return {"mainsnak": {"datavalue": {"value": valor}}, "rank": "normal", **extra}
+
+
+WIKIDATA = {
+    "Q1": {"claims": {"P17": [_claim({"id": "Q298"})],
+                      "P154": [_claim("Logo PX viejo.svg", qualifiers={"P582": []}), _claim("Logo PX 2020.svg")]}},
+    "Q2": {"claims": {"P17": [_claim({"id": "Q717"})], "P154": [_claim("Logo venezolano.svg")]}},
 }
 LLAMADAS = []
 
@@ -63,7 +88,22 @@ def red_falsa(request: httpx.Request) -> httpx.Response:
     host, path = request.url.host, request.url.path
     if "senado" in host:
         return httpx.Response(200, content=SENADORES_XML.encode())
+    if "wikidata" in host:
+        ids = request.url.params["ids"].split("|")
+        return httpx.Response(200, json={"entities": {q: WIKIDATA[q] for q in ids if q in WIKIDATA}})
+    if "commons" in host:
+        assert request.url.params["titles"] == "File:Logo PX 2020.svg"
+        return httpx.Response(200, json={"query": {"pages": {"1": {"title": "File:Logo PX 2020.svg", "imageinfo": [{
+            "url": "https://upload.wikimedia.org/px.svg", "thumburl": "https://upload.wikimedia.org/256px-px.png",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Logo_PX_2020.svg",
+            "extmetadata": {"LicenseShortName": {"value": "Public domain"},
+                            "Artist": {"value": "<a href='x'>Partido X</a>"}}}]}}}})
     if "wikipedia" in host:
+        if request.url.params.get("prop") == "pageprops":
+            qids = {"Partido X (Chile)": "Q1", "Partido X de Venezuela": "Q2"}
+            pages = {str(i): {"title": t, "pageprops": {"wikibase_item": qids[t]}}
+                     for i, t in enumerate(request.url.params["titles"].split("|")) if t in qids}
+            return httpx.Response(200, json={"query": {"pages": pages}})
         if path.endswith("api.php"):
             q = request.url.params["srsearch"]
             titulos = [t for t in WIKI if t.split(" ")[0] in q]

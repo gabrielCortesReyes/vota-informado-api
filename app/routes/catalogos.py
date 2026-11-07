@@ -4,6 +4,7 @@ import re
 from fastapi import APIRouter, HTTPException
 
 from app.camara.client import consultar
+from app.distritos import comunas_con_distrito
 
 WS = "WSComun"
 OPERACIONES = [
@@ -32,8 +33,11 @@ async def listar_catalogos():
     return sorted(CATALOGOS)
 
 
-@router.get("/{nombre}", summary="Contenido de un catálogo (p.ej. comunas, distritos, partidos-politicos)")
+@router.get("/{nombre}", summary="Contenido de un catálogo (p.ej. comunas, distritos, partidos-politicos)",
+            description="`comunas` incluye además el campo `Distrito` (sacado de `distritos`).")
 async def catalogo(nombre: str):
+    if nombre == "comunas":
+        return await comunas_con_distrito()
     if nombre not in CATALOGOS:
         raise HTTPException(status_code=404, detail=f"Catálogo desconocido. Disponibles: {', '.join(sorted(CATALOGOS))}")
     return await consultar(WS, CATALOGOS[nombre])

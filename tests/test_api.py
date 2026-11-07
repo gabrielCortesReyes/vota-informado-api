@@ -33,7 +33,7 @@ def test_datos_camara(api):
 
 def test_cache(api):
     camara.limpiar_cache(); LLAMADAS.clear()
-    api.get("/catalogos/comunas"); api.get("/catalogos/comunas")
+    api.get("/catalogos/regiones"); api.get("/catalogos/regiones")
     assert len(LLAMADAS) == 1
 
 

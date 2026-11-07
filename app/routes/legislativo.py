@@ -1,9 +1,12 @@
 """WSLegislativo: proyectos de ley, votaciones, legislaturas, períodos, materias y trámites."""
 from datetime import date
 
-from fastapi import APIRouter, Path, Query
+from fastapi import APIRouter, Depends, Path, Query
+from sqlalchemy.orm import Session
 
 from app.camara.client import consultar, consultar_o_404
+from app.database import get_db
+from app.distritos import votos_del_distrito
 
 WS = "WSLegislativo"
 router = APIRouter(tags=["Legislativo"])
@@ -58,6 +61,12 @@ async def votaciones(anno: int | None = AnnoQuery):
 @router.get("/votaciones/{votacion_id}", summary="Detalle de una votación (voto de cada diputado)")
 async def votacion(votacion_id: int):
     return await consultar_o_404(WS, "retornarVotacionDetalle", "Votación no encontrada", prmVotacionId=votacion_id)
+
+
+@router.get("/votaciones/{votacion_id}/distrito/{distrito}",
+            summary="Cómo votaron los diputados de un distrito en una votación")
+async def votacion_distrito(votacion_id: int, distrito: int = Path(..., ge=1, le=60), db: Session = Depends(get_db)):
+    return await votos_del_distrito(db, votacion_id, distrito)
 
 
 # --- Legislaturas y períodos --------------------------------------------------

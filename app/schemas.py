@@ -27,6 +27,11 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+DistrictVote = Literal["diputado", "otro", "no_voto", "no_responde"]
+VOTO_DESC = ("A quién votó en la última elección de diputados: 'diputado' (uno de los electos, ver "
+             "voted_parliamentarian_id), 'otro' (un candidato que no salió), 'no_voto' o 'no_responde'")
+
+
 class RegisterSchema(BaseModel):
     fiscal_id: str = Field(description="RUT, con o sin puntos", examples=["12.345.678-5"])
     names: str = Field(min_length=1, max_length=100)
@@ -35,10 +40,15 @@ class RegisterSchema(BaseModel):
     password: str = Field(min_length=8, max_length=72)
     phone_number: Optional[str] = Field(None, examples=["+56912345678"])
     commune_id: Optional[int] = Field(None, description="Numero de /catalogos/comunas")
+    district_vote: Optional[DistrictVote] = Field(None, description=VOTO_DESC)
+    voted_parliamentarian_id: Optional[int] = Field(None, description="Id (de /parlamentarios) del diputado que votó")
 
 
 class UserPreferencesSchema(BaseModel):
+    """Al guardar, solo se cambian los campos enviados."""
     commune_id: Optional[int] = None
+    district_vote: Optional[DistrictVote] = Field(None, description=VOTO_DESC)
+    voted_parliamentarian_id: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -65,6 +75,10 @@ class PartyOut(BaseModel):
     id: int
     name: str
     alias: Optional[str] = None
+    logo_url: Optional[str] = Field(None, description="PNG del logo (Wikimedia Commons)")
+    logo_license: Optional[str] = None
+    logo_author: Optional[str] = None
+    logo_source_url: Optional[str] = Field(None, description="Página del archivo en Commons (autor y licencia)")
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -181,3 +195,18 @@ class AnswerIn(BaseModel):
 class SurveyResponseIn(BaseModel):
     parliamentarian_id: Optional[int] = None
     answers: list[AnswerIn] = Field(min_length=1)
+
+
+class PartyLogoIn(BaseModel):
+    logo_url: Optional[str] = None
+    logo_license: Optional[str] = None
+    logo_author: Optional[str] = None
+    logo_source_url: Optional[str] = None
+
+
+class MiDistritoOut(BaseModel):
+    commune_id: Optional[int] = None
+    distrito: Optional[int] = None
+    district_vote: Optional[DistrictVote] = None
+    voted_parliamentarian_id: Optional[int] = None
+    diputados: list[ParliamentarianOut] = []

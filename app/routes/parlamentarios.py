@@ -2,12 +2,13 @@
 from datetime import datetime, timezone
 from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
+from app.distritos import diputados_del_distrito
 from app.models import Comment, Parliamentarian, Party, Rating, User
 from app.schemas import (CommentIn, CommentOut, ParliamentarianDetail, ParliamentarianOut, PartyWithCount,
                          RatingIn, RatingOut, RatingSummary)
@@ -50,16 +51,23 @@ def partidos(db: Session = Depends(get_db)):
                                  .group_by(Parliamentarian.party_id, Parliamentarian.chamber)):
         conteo[(party_id, chamber)] = n
     return [
-        PartyWithCount(id=p.id, name=p.name, alias=p.alias,
-                       diputados=conteo.get((p.id, "diputado"), 0), senadores=conteo.get((p.id, "senador"), 0))
+        PartyWithCount.model_validate(p).model_copy(update={
+            "diputados": conteo.get((p.id, "diputado"), 0), "senadores": conteo.get((p.id, "senador"), 0)})
         for p in db.query(Party).order_by(Party.name)
     ]
+
+
+@router.get("/distritos/{distrito}/diputados", response_model=list[ParliamentarianOut],
+            summary="Diputados en ejercicio de un distrito (1 a 28)")
+def diputados_distrito(distrito: int = Path(..., ge=1, le=60), db: Session = Depends(get_db)):
+    return diputados_del_distrito(db, distrito)
 
 
 @router.get("/parlamentarios", response_model=list[ParliamentarianOut], summary="Buscar diputados y senadores")
 def listar(
     camara: Optional[Literal["diputado", "senador"]] = None,
     partido_id: Optional[int] = None,
+    distrito: Optional[int] = Query(None, description="Número de distrito (diputados) o circunscripción (senadores)"),
     q: Optional[str] = Query(None, description="Texto en nombre o apellidos"),
     solo_vigentes: bool = True,
     limit: int = Query(200, le=500),
@@ -71,6 +79,8 @@ def listar(
         query = query.filter(Parliamentarian.chamber == camara)
     if partido_id:
         query = query.filter(Parliamentarian.party_id == partido_id)
+    if distrito:
+        query = query.filter(Parliamentarian.district == str(distrito))
     if solo_vigentes:
         query = query.filter(Parliamentarian.current.is_(True))
     if q:

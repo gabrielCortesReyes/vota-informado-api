@@ -84,20 +84,24 @@ Catálogos: `comunas`, `distritos`, `regiones`, `provincias`, `ministerios`, `pa
 
 | Método | Ruta | |
 |---|---|---|
-| POST | `/auth/register` | `{"fiscal_id" (RUT), "names", "last_names", "email", "password" (mín. 8), "phone_number"?, "commune_id"?}` → tokens |
+| POST | `/auth/register` | `{"fiscal_id" (RUT), "names", "last_names", "email", "password" (mín. 8), "phone_number"?, "commune_id"?, "district_vote"?, "voted_parliamentarian_id"?}` → tokens |
 | POST | `/auth/login` | `{"username","password"}` → access + refresh token (máx. 5/min) |
 | POST | `/auth/refresh-token` | `{"refresh_token"}` → tokens nuevos |
 | POST | `/auth/change-password` | `{"new_password"}` (requiere token) |
 | POST | `/auth/restore-password` | Clave temporal por WhatsApp (requiere `WPP_ENDPOINT`) |
 | GET | `/user/me` | Perfil del usuario |
-| GET/POST | `/user/me/preferences` | Comuna (`Numero` de `/catalogos/comunas`) |
+| GET/POST | `/user/me/preferences` | Comuna (`Numero` de `/catalogos/comunas`) y a quién votó: `district_vote` = `diputado` (con `voted_parliamentarian_id`, que debe ser de su distrito), `otro`, `no_voto` o `no_responde`. Solo cambian los campos enviados |
+| GET | `/user/me/distrito` | Distrito del usuario según su comuna, sus diputados y a quién votó |
+| GET | `/user/me/distrito/votaciones/{id}` (o `/ultima`) | Cómo votó cada diputado de su distrito; el suyo va primero con `es_mi_diputado` |
 
 **Parlamentarios y participación** (leer es público; escribir requiere token)
 
 | Método | Ruta | |
 |---|---|---|
 | GET | `/partidos` | Partidos con número de diputados y senadores en ejercicio |
-| GET | `/parlamentarios?camara=senador&partido_id=&q=` | Buscar diputados y senadores |
+| GET | `/parlamentarios?camara=senador&partido_id=&distrito=&q=` | Buscar diputados y senadores (el partido trae `logo_url`) |
+| GET | `/distritos/{n}/diputados` | Diputados en ejercicio de un distrito |
+| GET | `/votaciones/{id}/distrito/{n}` | Cómo votaron los diputados de un distrito |
 | GET | `/parlamentarios/{id}` | Ficha: partido, región, contacto, descripción y foto de Wikipedia, promedio de calificación |
 | GET/POST | `/parlamentarios/{id}/comentarios` | Ver y dejar comentarios (se muestra "María S.") |
 | PUT/DELETE | `/comentarios/{id}` | Editar o borrar un comentario propio |
@@ -120,6 +124,7 @@ Al arrancar se crea la encuesta **"Evaluación de tu parlamentario"**: ¿Votaste
 | POST | `/admin/encuestas` | Crear una encuesta nueva |
 | PATCH | `/admin/encuestas/{id}` | `{"active": false}` para cerrarla |
 | PATCH | `/admin/comentarios/{id}` | `{"hidden": true}` para ocultar un comentario |
+| PATCH | `/admin/partidos/{id}/logo` | Fijar a mano `logo_url`, `logo_license`, `logo_author`, `logo_source_url` |
 
 Rutas con token: header `Authorization: Bearer <access_token>`.
 Otras: `/health`, `/cache/clear` (requiere token).
@@ -140,6 +145,15 @@ Ver `.env.example`. Lo importante:
 Wikipedia en español. Solo se acepta un artículo de Wikipedia si su título tiene el nombre y apellido
 del parlamentario y el texto habla de un político chileno; los demás quedan sin descripción. Los textos
 de Wikipedia son CC BY-SA 4.0: la app debe mostrar el enlace (`wikipedia_url`) junto a la descripción.
+
+**Distritos:** `/catalogos/comunas` agrega a cada comuna su `Distrito`, sacado de `retornarDistritos`
+(la Cámara no lo trae en el catálogo de comunas). Cada diputado guarda su distrito desde `DiputadoPeriodo/Distrito`.
+
+**Logos de partidos:** se buscan en Wikipedia en español → Wikidata (propiedad P154, logo vigente, país Chile)
+→ Wikimedia Commons, que entrega un PNG de 256 px, la licencia y el autor (`logo_license`, `logo_author`,
+`logo_source_url`). La app debe mostrar el crédito y enlazar a `logo_source_url`. Los logos son marcas de sus
+partidos; Commons solo guarda los de dominio público o con licencia libre. Si alguno queda mal, se corrige con
+`PATCH /admin/partidos/{id}/logo`.
 
 ## Despliegue (Cloud Run)
 

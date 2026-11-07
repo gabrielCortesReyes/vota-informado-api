@@ -17,7 +17,7 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.camara.client import consultar
-from app.config import SENADO_SENADORES_URL, WIKIPEDIA_API, WIKIPEDIA_USER_AGENT
+from app.config import COMMONS_API, SENADO_SENADORES_URL, WIKIDATA_API, WIKIPEDIA_API, WIKIPEDIA_USER_AGENT
 from app.models import Parliamentarian, Party
 
 logger = logging.getLogger(__name__)
@@ -94,6 +94,7 @@ async def sincronizar_diputados(db: Session) -> int:
         if not d.get("Id"):
             continue
         mil = _militancia_actual(d.get("Militancias"))
+        distrito = (item.get("Distrito") or {}) if isinstance(item.get("Distrito"), dict) else {}
         partido = (mil or {}).get("Partido") or {}
         sexo = d.get("Sexo")
         _upsert(
@@ -104,6 +105,7 @@ async def sincronizar_diputados(db: Session) -> int:
             gender=sexo.get("Nombre") if isinstance(sexo, dict) else sexo,
             birth_date=str(d["FechaNacimiento"])[:10] if d.get("FechaNacimiento") else None,
             party=_party(db, partido.get("Nombre"), partido.get("Alias"), partido.get("Id")),
+            district=str(distrito["Numero"]) if distrito.get("Numero") is not None else None,
         )
         vistos.add(int(d["Id"]))
     _marcar_no_vigentes(db, "diputado", vistos)
@@ -215,6 +217,107 @@ async def sincronizar_wikipedia(db: Session, solo_faltantes: bool = True, limite
     return {"revisados": len(pendientes), "encontrados": encontrados}
 
 
+# --- Logos de partidos (Wikipedia → Wikidata P154 → Wikimedia Commons) -------------
+
+CHILE = "Q298"
+_VACIAS = {"partido", "de", "del", "la", "el", "los", "las", "y", "chile", "por"}
+
+
+def _palabras(texto: str) -> set[str]:
+    texto = re.sub(r"\(.*?\)", " ", _norm(texto))
+    return {w for w in re.findall(r"[a-z0-9]+", texto) if w not in _VACIAS}
+
+
+def _mismo_nombre(partido: Party, titulo: str) -> bool:
+    t = _palabras(titulo)
+    return any(n and t and (n <= t or t <= n) for n in (_palabras(partido.name), _palabras(partido.alias or "")))
+
+
+def _logo_vigente(claims: list) -> str | None:
+    """De los valores de P154 (logo): el preferido, o el que no tiene fecha de término, o el último."""
+    vals = [c for c in claims if c.get("rank") != "deprecated" and
+            ((c.get("mainsnak") or {}).get("datavalue") or {}).get("value")]
+    if not vals:
+        return None
+    sin_fin = [c for c in vals if "P582" not in (c.get("qualifiers") or {})]
+    elegido = next((c for c in vals if c.get("rank") == "preferred"), None) or (sin_fin or vals)[-1]
+    return elegido["mainsnak"]["datavalue"]["value"]
+
+
+def _sin_html(texto: str | None) -> str | None:
+    if not texto:
+        return None
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", texto)).strip()[:300] or None
+
+
+async def _buscar_logo(client: httpx.AsyncClient, partido: Party) -> dict | None:
+    if _norm(partido.name).startswith("independiente"):
+        return None
+    r = await client.get(f"{WIKIPEDIA_API}/w/api.php", params={
+        "action": "query", "list": "search", "srsearch": f"{partido.name} partido político Chile",
+        "srlimit": 5, "format": "json"})
+    r.raise_for_status()
+    titulos = [h["title"] for h in r.json().get("query", {}).get("search", []) if _mismo_nombre(partido, h["title"])]
+    if not titulos:
+        return None
+    r = await client.get(f"{WIKIPEDIA_API}/w/api.php", params={
+        "action": "query", "prop": "pageprops", "ppprop": "wikibase_item", "redirects": 1,
+        "titles": "|".join(titulos), "format": "json"})
+    r.raise_for_status()
+    por_titulo = {p.get("title"): (p.get("pageprops") or {}).get("wikibase_item")
+                  for p in (r.json().get("query", {}).get("pages") or {}).values()}
+    qids = [por_titulo[t] for t in titulos if por_titulo.get(t)]
+    if not qids:
+        return None
+    r = await client.get(WIKIDATA_API, params={"action": "wbgetentities", "ids": "|".join(qids),
+                                               "props": "claims", "format": "json"})
+    r.raise_for_status()
+    entidades = r.json().get("entities", {})
+    for qid in qids:
+        claims = (entidades.get(qid) or {}).get("claims", {})
+        paises = {((c.get("mainsnak") or {}).get("datavalue") or {}).get("value", {}).get("id")
+                  for c in claims.get("P17", [])}
+        archivo = _logo_vigente(claims.get("P154", []))
+        if CHILE not in paises or not archivo:
+            continue
+        r = await client.get(COMMONS_API, params={
+            "action": "query", "titles": f"File:{archivo}", "prop": "imageinfo",
+            "iiprop": "url|extmetadata", "iiurlwidth": 256, "format": "json"})
+        r.raise_for_status()
+        for page in (r.json().get("query", {}).get("pages") or {}).values():
+            info = (page.get("imageinfo") or [None])[0]
+            if not info:
+                continue
+            meta = info.get("extmetadata") or {}
+            return {"logo_url": info.get("thumburl") or info.get("url"),
+                    "logo_source_url": info.get("descriptionurl"),
+                    "logo_license": _sin_html((meta.get("LicenseShortName") or {}).get("value")),
+                    "logo_author": _sin_html((meta.get("Artist") or {}).get("value"))}
+    return None
+
+
+async def sincronizar_logos(db: Session, solo_faltantes: bool = True) -> dict:
+    q = db.query(Party)
+    if solo_faltantes:
+        q = q.filter(Party.logo_url.is_(None))
+    pendientes = q.order_by(Party.id).all()
+    encontrados = 0
+    async with _cliente(timeout=20, headers={"User-Agent": WIKIPEDIA_USER_AGENT}) as client:
+        for partido in pendientes:
+            try:
+                logo = await _buscar_logo(client, partido)
+            except (httpx.HTTPError, ValueError, KeyError) as e:
+                logger.warning(f"No se pudo buscar el logo de {partido.name}: {e}")
+                continue
+            partido.logo_checked_at = datetime.now(timezone.utc)
+            if logo and logo["logo_url"]:
+                for k, v in logo.items():
+                    setattr(partido, k, v)
+                encontrados += 1
+            db.commit()
+    return {"revisados": len(pendientes), "encontrados": encontrados}
+
+
 async def sincronizar_todo(db: Session, wikipedia: bool = True) -> dict:
     resultado = {}
     for nombre, tarea in (("partidos", sincronizar_partidos), ("diputados", sincronizar_diputados),
@@ -231,5 +334,10 @@ async def sincronizar_todo(db: Session, wikipedia: bool = True) -> dict:
         except Exception as e:
             db.rollback()
             resultado["wikipedia"] = f"error: {e}"
+        try:
+            resultado["logos"] = await sincronizar_logos(db)
+        except Exception as e:
+            db.rollback()
+            resultado["logos"] = f"error: {e}"
     logger.info(f"Sincronización: {resultado}")
     return resultado

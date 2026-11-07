@@ -4,9 +4,9 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, get_db
-from app.models import Comment, Survey
+from app.models import Comment, Party, Survey
 from app.routes.encuestas import crear_encuesta
-from app.schemas import SurveyIn, SurveyOut
+from app.schemas import PartyLogoIn, PartyOut, SurveyIn, SurveyOut
 from app.security import admin_user
 from app.sync import sincronizar_todo
 
@@ -60,3 +60,16 @@ def moderar(comment_id: int, body: Moderation, db: Session = Depends(get_db)):
     c.hidden = body.hidden
     db.commit()
     return {"id": c.id, "hidden": c.hidden}
+
+
+@router.patch("/partidos/{party_id}/logo", response_model=PartyOut,
+              summary="Fijar a mano el logo de un partido (si la búsqueda en Wikimedia no lo encontró o eligió mal)")
+def logo_partido(party_id: int, body: PartyLogoIn, db: Session = Depends(get_db)):
+    p = db.get(Party, party_id)
+    if not p:
+        raise HTTPException(status_code=404, detail="Partido no encontrado")
+    for k, v in body.model_dump(exclude_unset=True).items():
+        setattr(p, k, v)
+    db.commit()
+    db.refresh(p)
+    return p

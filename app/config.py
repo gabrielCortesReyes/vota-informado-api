@@ -45,3 +45,5 @@ SENADO_SENADORES_URL = os.getenv("SENADO_SENADORES_URL", "https://tramitacion.se
 WIKIPEDIA_API = os.getenv("WIKIPEDIA_API", "https://es.wikipedia.org")
 # Wikimedia pide un User-Agent que identifique la app y un contacto (URL o correo del proyecto)
 WIKIPEDIA_USER_AGENT = os.getenv("WIKIPEDIA_USER_AGENT", "VotaInformado/3.0 (https://opendata.camara.cl/)")
+WIKIDATA_API = os.getenv("WIKIDATA_API", "https://www.wikidata.org/w/api.php")
+COMMONS_API = os.getenv("COMMONS_API", "https://commons.wikimedia.org/w/api.php")

@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.config import WPP_ENDPOINT, WPP_TOKEN
 from app.database import get_db
 from app.models import User, UserCredentials, UserPreferences
+from app.routes.usuario import aplicar_preferencias
 from app.rut import normalizar_rut
 from app.schemas import (ChangePasswordSchema, LoginSchema, RefreshTokenSchema, RegisterSchema,
                          RestorePasswordSchema, TokenResponse)
@@ -38,8 +39,11 @@ async def register(body: RegisterSchema, request: Request, db: Session = Depends
     db.add(user)
     db.flush()
     db.add(UserCredentials(user_id=user.id, username=email, hashed_password=hash_password(body.password)))
-    if body.commune_id:
-        db.add(UserPreferences(user_id=user.id, commune_id=body.commune_id))
+    cambios = body.model_dump(include={"commune_id", "district_vote", "voted_parliamentarian_id"}, exclude_none=True)
+    if cambios:
+        prefs = UserPreferences(user_id=user.id)
+        await aplicar_preferencias(db, prefs, cambios)  # 422 si el diputado no es de su distrito
+        db.add(prefs)
     db.commit()
     db.refresh(user)
     return token_pair(user, False, get_remote_address(request))
