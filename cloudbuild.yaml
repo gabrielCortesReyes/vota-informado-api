@@ -1,4 +1,4 @@
-# Despliegue a Cloud Run:
+# Alternativa para CI (lo normal es usar ./deploy/deploy.sh):
 #   gcloud builds submit --config cloudbuild.yaml --substitutions=_CLOUDSQL=proyecto:region:instancia
 # Secretos esperados en Secret Manager: app-secret-key, postgres-password
 steps:
@@ -27,5 +27,5 @@ substitutions:
   _SERVICE: vota-informado
   _REGION: us-central1
   _CLOUDSQL: ""
-  _DB_USER: vota_bien_user
-  _DB_NAME: vota_bien
+  _DB_USER: vota_informado
+  _DB_NAME: vota_informado

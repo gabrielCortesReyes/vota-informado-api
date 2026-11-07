@@ -143,11 +143,11 @@ de Wikipedia son CC BY-SA 4.0: la app debe mostrar el enlace (`wikipedia_url`) j
 
 ## Despliegue (Cloud Run)
 
-```bash
-gcloud builds submit --config cloudbuild.yaml --substitutions=_CLOUDSQL=PROYECTO:REGION:INSTANCIA
-```
+Cloud Run + Cloud SQL + Cloud Scheduler, con scripts en `deploy/`. Guía completa: [deploy/README.md](deploy/README.md).
 
-Necesita en Secret Manager `app-secret-key` y `postgres-password`.
+```bash
+./deploy/setup-gcp.sh && ./deploy/deploy.sh && ./deploy/setup-scheduler.sh
+```
 
 ## Estructura
 
