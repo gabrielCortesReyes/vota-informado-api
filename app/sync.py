@@ -5,6 +5,8 @@ Fuentes:
 - Senado (tramitacion.senado.cl/wspublico/senadores_vigentes.php): senadores en ejercicio.
 - Wikipedia en español: descripción, foto y enlace de cada parlamentario.
 
+- Cámara (WSSala): asistencia a la Sala y justificaciones (ver app/asistencia.py).
+
 Uso:  python -m app.cli sincronizar [--sin-wikipedia]   o   POST /admin/sincronizar
 """
 import logging
@@ -16,6 +18,7 @@ from datetime import datetime, timezone
 import httpx
 from sqlalchemy.orm import Session
 
+from app.asistencia import sincronizar_asistencia
 from app.camara.client import consultar
 from app.config import COMMONS_API, SENADO_SENADORES_URL, WIKIDATA_API, WIKIPEDIA_API, WIKIPEDIA_USER_AGENT
 from app.distritos import DISTRITOS_VIGENTES, diputados_distrito
@@ -334,7 +337,7 @@ async def sincronizar_logos(db: Session, solo_faltantes: bool = True) -> dict:
 async def sincronizar_todo(db: Session, wikipedia: bool = True) -> dict:
     resultado = {}
     for nombre, tarea in (("partidos", sincronizar_partidos), ("diputados", sincronizar_diputados),
-                          ("senadores", sincronizar_senadores)):
+                          ("senadores", sincronizar_senadores), ("asistencia", sincronizar_asistencia)):
         try:
             resultado[nombre] = await tarea(db)
         except Exception as e:  # una fuente caída no detiene a las demás

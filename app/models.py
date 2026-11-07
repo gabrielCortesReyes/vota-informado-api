@@ -4,7 +4,7 @@ Los datos legislativos (proyectos, votaciones, sesiones) se leen en vivo de la C
 En la base se guardan: usuarios, un padrón de parlamentarios y partidos (para poder
 comentarlos, calificarlos y asociarles encuestas) y la participación de los usuarios.
 """
-from sqlalchemy import (JSON, TIMESTAMP, Boolean, CheckConstraint, Column, ForeignKey, Integer, String, Text,
+from sqlalchemy import (JSON, TIMESTAMP, Boolean, CheckConstraint, Column, ForeignKey, Index, Integer, String, Text,
                         UniqueConstraint, func)
 from sqlalchemy.orm import relationship
 
@@ -124,6 +124,43 @@ class Parliamentarian(Base):
     @property
     def full_name(self) -> str:
         return " ".join(p for p in (self.first_name, self.last_name, self.second_last_name) if p)
+
+
+# --- Asistencia a la Sala (WSSala) -------------------------------------------------
+
+class SalaSession(Base):
+    """Sesión de Sala de la Cámara (Id = Id de la Cámara)."""
+    __tablename__ = "sala_sessions"
+
+    id = Column(Integer, primary_key=True, autoincrement=False)
+    numero = Column(Integer, nullable=True)
+    fecha_inicio = Column(TIMESTAMP, nullable=False, index=True)
+    fecha_termino = Column(TIMESTAMP, nullable=True)
+    tipo = Column(String(50), nullable=True)      # Ordinaria | Especial | Congreso Pleno
+    estado = Column(String(50), nullable=True)    # Celebrada | Citada
+    asistencia_cargada = Column(Boolean, nullable=False, default=False)
+    updated_at = Column(TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp())
+
+    asistencias = relationship("SalaAttendance", back_populates="session", cascade="all, delete-orphan")
+
+
+class SalaAttendance(Base):
+    """Asistencia de un diputado a una sesión, con la justificación si no asistió."""
+    __tablename__ = "sala_attendance"
+    __table_args__ = (UniqueConstraint("session_id", "diputado_id"),
+                      Index("ix_sala_attendance_diputado", "diputado_id", "asistio"))
+
+    id = Column(Integer, primary_key=True)
+    session_id = Column(Integer, ForeignKey("sala_sessions.id", ondelete="CASCADE"), nullable=False)
+    diputado_id = Column(Integer, nullable=False)  # Id de la Cámara = Parliamentarian.external_id
+    asistio = Column(Boolean, nullable=False)
+    tipo_asistencia = Column(String(50), nullable=True)   # "Asiste" | "No Asiste"
+    justificacion_id = Column(Integer, nullable=True)
+    justificacion = Column(String(200), nullable=True)    # p. ej. "Licencia médica (Art. 42)"
+    rebaja_asistencia = Column(Boolean, nullable=True)
+    rebaja_quorum = Column(Boolean, nullable=True)
+
+    session = relationship("SalaSession", back_populates="asistencias")
 
 
 # --- Participación ------------------------------------------------------------------

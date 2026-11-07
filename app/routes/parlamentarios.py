@@ -7,10 +7,11 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
 
+from app.asistencia import resumen_diputado
 from app.database import get_db
 from app.distritos import diputados_del_distrito
 from app.models import Comment, Parliamentarian, Party, Rating, User
-from app.schemas import (CommentIn, CommentOut, ParliamentarianDetail, ParliamentarianOut, PartyWithCount,
+from app.schemas import (AsistenciaResumen, CommentIn, CommentOut, ParliamentarianDetail, ParliamentarianOut, PartyWithCount,
                          RatingIn, RatingOut, RatingSummary)
 from app.security import current_user, decode, get_active_user
 
@@ -98,6 +99,8 @@ def detalle(parl_id: int, db: Session = Depends(get_db)):
     data.calificacion = _rating_summary(db, parl_id)
     data.comentarios = db.query(Comment).filter(Comment.parliamentarian_id == parl_id, Comment.deleted_at.is_(None),
                                                 Comment.hidden.is_(False)).count()
+    if p.chamber == "diputado":
+        data.asistencia = AsistenciaResumen(**resumen_diputado(db, p.external_id))
     if p.description:
         data.licencia_descripcion = "Texto de Wikipedia, licencia CC BY-SA 4.0"
     return data

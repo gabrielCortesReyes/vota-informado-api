@@ -102,7 +102,9 @@ Catálogos: `comunas`, `distritos`, `regiones`, `provincias`, `ministerios`, `pa
 | GET | `/parlamentarios?camara=senador&partido_id=&distrito=&q=` | Buscar diputados y senadores (el partido trae `logo_url`) |
 | GET | `/distritos/{n}/diputados` | Diputados en ejercicio de un distrito |
 | GET | `/votaciones/{id}/distrito/{n}` | Cómo votaron los diputados de un distrito |
-| GET | `/parlamentarios/{id}` | Ficha: partido, región, contacto, descripción y foto de Wikipedia, promedio de calificación |
+| GET | `/parlamentarios/{id}` | Ficha: partido, región, contacto, descripción y foto de Wikipedia, promedio de calificación y resumen de `asistencia` (diputados) |
+| GET | `/parlamentarios/{id}/asistencia?desde=&hasta=` | % de asistencia a la Sala, cada sesión a la que no asistió y su justificación (diputados) |
+| GET | `/asistencia/diputados?orden=desc&partido_id=&distrito=` | Asistencia de todos los diputados en ejercicio, ordenada por % |
 | GET/POST | `/parlamentarios/{id}/comentarios` | Ver y dejar comentarios (se muestra "María S.") |
 | PUT/DELETE | `/comentarios/{id}` | Editar o borrar un comentario propio |
 | PUT | `/parlamentarios/{id}/calificacion` | `{"score": 1-5}`, una por usuario (reenviar la cambia) |
@@ -120,7 +122,8 @@ Al arrancar se crea la encuesta **"Evaluación de tu parlamentario"**: ¿Votaste
 
 | Método | Ruta | |
 |---|---|---|
-| POST | `/admin/sincronizar?wikipedia=true` | Recarga partidos, diputados, senadores y descripciones |
+| POST | `/admin/sincronizar?wikipedia=true` | Recarga partidos, diputados, senadores, asistencia y descripciones |
+| POST | `/admin/asistencia/sincronizar?desde=2026-03-11&recargar_dias=30` | Carga solo la asistencia a la Sala |
 | POST | `/admin/encuestas` | Crear una encuesta nueva |
 | PATCH | `/admin/encuestas/{id}` | `{"active": false}` para cerrarla |
 | PATCH | `/admin/comentarios/{id}` | `{"hidden": true}` para ocultar un comentario |
@@ -152,6 +155,15 @@ trae aún los 60 distritos antiguos). Cada diputado guarda su distrito desde `Di
 1-28; si no, desde `app/data/diputados_distrito.json` (Id de la Cámara → distrito, período 2026-2030). Ambos JSON se
 generaron desde Wikipedia ("Distritos electorales de Chile" y "LVII periodo legislativo del Congreso Nacional de Chile").
 
+**Asistencia a la Sala:** desde WSSala. `retornarSesionesXAnno` da las sesiones y `retornarSesionAsistencia` dice,
+por diputado, `Asiste` / `No Asiste` y, si no asistió, la `Justificacion` (p. ej. "Licencia médica (Art. 42)", con las
+marcas `RebajaAsistencia` y `RebajaQuorum` de la Cámara; catálogo en `/catalogos/tipos-justificaciones-inasistencia`).
+Se guardan en las tablas `sala_sessions` y `sala_attendance`, solo sesiones **celebradas** desde `PERIODO_INICIO`
+(2026-03-11, inicio del período 2026-2030). La sincronización diaria agrega las sesiones nuevas y vuelve a leer las de
+los últimos `ASISTENCIA_RECARGAR_DIAS` (30), porque la Cámara registra justificaciones después. El % es
+asistencias / sesiones × 100; una inasistencia es "justificada" si la Cámara le registró una justificación. Cada
+inasistencia trae `fuente_url`, la consulta oficial de esa sesión.
+
 **Logos de partidos:** se buscan en Wikipedia en español → Wikidata (propiedad P154, logo vigente, país Chile)
 → Wikimedia Commons, que entrega un PNG de 256 px, la licencia y el autor (`logo_license`, `logo_author`,
 `logo_source_url`). La app debe mostrar el crédito y enlazar a `logo_source_url`. Los logos son marcas de sus
@@ -178,11 +190,12 @@ app/
 ├── security.py      # contraseñas, JWT, rate limit, rol admin
 ├── rut.py           # validación de RUT
 ├── sync.py          # carga del padrón (Cámara, Senado, Wikipedia)
-├── cli.py           # python -m app.cli sincronizar | admin
+├── asistencia.py    # asistencia a la Sala y justificaciones (WSSala)
+├── cli.py           # python -m app.cli sincronizar | asistencia | admin
 ├── camara/
 │   ├── client.py    # única puerta hacia opendata.camara.cl (+ caché)
 │   └── xml.py       # XML → JSON
-└── routes/          # legislativo, diputados, sala, catalogos, parlamentarios,
+└── routes/          # legislativo, diputados, sala, asistencia, catalogos, parlamentarios,
                      # encuestas, auth, usuario, admin
 tests/               # pytest, sin red (Cámara, Senado y Wikipedia simulados)
 ```

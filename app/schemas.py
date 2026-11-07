@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -112,6 +112,18 @@ class ParliamentarianOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class AsistenciaResumen(BaseModel):
+    """Asistencia a sesiones de Sala (solo diputados). porcentaje = asistencias / sesiones × 100."""
+    sesiones: int = 0
+    asistencias: int = 0
+    inasistencias: int = 0
+    justificadas: int = Field(0, description="Inasistencias con una justificación registrada por la Cámara")
+    sin_justificar: int = 0
+    porcentaje: Optional[float] = Field(None, description="% de asistencia; null si aún no hay sesiones cargadas")
+    desde: Optional[date] = Field(None, description="Fecha de la primera sesión considerada")
+    hasta: Optional[date] = Field(None, description="Fecha de la última sesión considerada")
+
+
 class ParliamentarianDetail(ParliamentarianOut):
     birth_date: Optional[str] = None
     email: Optional[str] = None
@@ -121,6 +133,37 @@ class ParliamentarianDetail(ParliamentarianOut):
     licencia_descripcion: Optional[str] = None
     calificacion: RatingSummary = RatingSummary()
     comentarios: int = 0
+    asistencia: Optional[AsistenciaResumen] = Field(None, description="Solo diputados; detalle en /parlamentarios/{id}/asistencia")
+
+
+class InasistenciaOut(BaseModel):
+    sesion_id: int
+    numero: Optional[int] = None
+    fecha: datetime
+    tipo_sesion: Optional[str] = None
+    justificada: bool
+    justificacion: Optional[str] = Field(None, description="Nombre de la justificación según la Cámara; null si no la hay")
+    justificacion_id: Optional[int] = None
+    rebaja_asistencia: Optional[bool] = Field(None, description="Marca RebajaAsistencia de la Cámara para esa justificación")
+    rebaja_quorum: Optional[bool] = Field(None, description="Marca RebajaQuorum de la Cámara para esa justificación")
+    fuente_url: str = Field(description="Dato oficial: WSSala retornarSesionAsistencia de esa sesión")
+
+
+class JustificacionConteo(BaseModel):
+    justificacion: str
+    cantidad: int
+
+
+class AsistenciaDetalle(AsistenciaResumen):
+    parlamentario_id: int
+    actualizado: Optional[datetime] = None
+    por_justificacion: list[JustificacionConteo] = []
+    inasistencias_detalle: list[InasistenciaOut] = []
+    fuente: str = "Cámara de Diputadas y Diputados, opendata.camara.cl (WSSala)"
+
+
+class AsistenciaDiputado(AsistenciaResumen):
+    parlamentario: ParliamentarianOut
 
 
 # --- Comentarios y calificaciones ---------------------------------------------------

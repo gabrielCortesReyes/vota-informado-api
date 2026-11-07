@@ -37,6 +37,10 @@ if SECRET_KEY == "cambia-esta-clave":
 CAMARA_BASE_URL = os.getenv("CAMARA_BASE_URL", "https://opendata.camara.cl/camaradiputados/WServices")
 CAMARA_TIMEOUT = float(os.getenv("CAMARA_TIMEOUT_SECONDS", "30"))
 CACHE_TTL = int(os.getenv("CACHE_TTL_SECONDS", "3600"))  # 1 hora
+# Asistencia a la Sala: se cuenta desde el inicio del período legislativo vigente (LVII: 11-03-2026)
+PERIODO_INICIO = os.getenv("PERIODO_INICIO", "2026-03-11")
+# Las sesiones de los últimos N días se vuelven a leer: la Cámara agrega justificaciones después
+ASISTENCIA_RECARGAR_DIAS = int(os.getenv("ASISTENCIA_RECARGAR_DIAS", "30"))
 
 WPP_ENDPOINT = os.getenv("WPP_ENDPOINT")
 WPP_TOKEN = os.getenv("WPP_TOKEN")
