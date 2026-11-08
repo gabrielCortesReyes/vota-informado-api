@@ -176,6 +176,11 @@ def _buscar_rec(datos, palabras: list[str], numerico: bool = False):
 
 # --- normalización ------------------------------------------------------------------------
 
+def _porcentaje(v: float | None) -> float | None:
+    """Algunas declaraciones traen porcentajes mal escritos (p. ej. 1000 o 815): se descartan."""
+    return v if v is not None and 0 <= v <= 100 else None
+
+
 def _item(grupo: str, crudo: dict) -> dict:
     titulo = _buscar(crudo, TITULO[grupo]) or "Sin descripción"
     detalle = [d for d in (_buscar(crudo, [p]) for p in DETALLE[grupo]) if d and d != titulo]
@@ -183,7 +188,7 @@ def _item(grupo: str, crudo: dict) -> dict:
         "titulo": titulo,
         "detalle": " · ".join(dict.fromkeys(detalle)) or None,
         "monto": _buscar(crudo, MONTO[grupo], numerico=True, excluir=NO_MONTO),
-        "porcentaje": _buscar(crudo, ["porcentaje"], numerico=True),
+        "porcentaje": _porcentaje(_buscar(crudo, ["porcentaje"], numerico=True)),
         "fecha_adquisicion": _fecha(_buscar(crudo, ["fecha_adq", "fecha"])),
     }
 

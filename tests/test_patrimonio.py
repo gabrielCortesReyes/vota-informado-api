@@ -61,6 +61,7 @@ def test_normalizar_montos():
     assert patrimonio._numero("13.4") == 13.4
     assert patrimonio._numero("1.234,5") == 1234.5
     assert patrimonio._numero("RESERVADO") is None
+    assert patrimonio._porcentaje(1000) is None and patrimonio._porcentaje(14.29) == 14.29
 
 
 def test_patrimonio(api, monkeypatch):
