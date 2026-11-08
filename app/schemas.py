@@ -253,3 +253,51 @@ class MiDistritoOut(BaseModel):
     district_vote: Optional[DistrictVote] = None
     voted_parliamentarian_id: Optional[int] = None
     diputados: list[ParliamentarianOut] = []
+
+
+# --- Patrimonio (InfoProbidad) ----------------------------------------------------------
+
+class PatrimonioItem(BaseModel):
+    titulo: str = Field(..., description="Comuna del inmueble, marca del vehículo, razón social, emisor o acreedor")
+    detalle: Optional[str] = None
+    monto: Optional[float] = Field(None, description="CLP: avalúo fiscal, valor libro, valor corriente o monto adeudado")
+    porcentaje: Optional[float] = Field(None, description="% de propiedad, si se declara")
+    fecha_adquisicion: Optional[date] = None
+
+
+class PatrimonioTotales(BaseModel):
+    inmuebles: float = 0
+    vehiculos: float = 0
+    sociedades: float = 0
+    valores: float = 0
+    otros_bienes: float = 0
+    pasivos: float = 0
+    activos: float = 0
+    patrimonio_neto: float = Field(0, description="activos − pasivos, con los valores declarados (no comerciales)")
+
+
+class PatrimonioOut(BaseModel):
+    parliamentarian_id: int
+    declaracion_id: int
+    fecha: Optional[date] = None
+    tipo: Optional[str] = None
+    fuente_url: str
+    licencia: str
+    advertencia: str = ("Montos declarados por el propio diputado: avalúo fiscal de inmuebles y vehículos, valor libro "
+                        "de sociedades y valor corriente de instrumentos. El valor comercial suele ser mayor.")
+    renta_bruta_mensual: Optional[float] = None
+    totales: PatrimonioTotales
+    inmuebles: list[PatrimonioItem] = []
+    vehiculos: list[PatrimonioItem] = []
+    sociedades: list[PatrimonioItem] = []
+    valores: list[PatrimonioItem] = []
+    otros_bienes: list[PatrimonioItem] = []
+    pasivos: list[PatrimonioItem] = []
+    datos: Optional[dict] = Field(None, description="JSON original de InfoProbidad (solo con ?incluir_fuente=true)")
+
+
+class PatrimonioRankingItem(BaseModel):
+    parlamentario: ParliamentarianOut
+    declaracion_id: int
+    fecha: Optional[date] = None
+    totales: PatrimonioTotales

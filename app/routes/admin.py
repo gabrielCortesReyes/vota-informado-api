@@ -6,11 +6,14 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, get_db
-from app.models import Comment, Party, Survey
+from app.models import Comment, Parliamentarian, Party, Survey
 from app.routes.encuestas import crear_encuesta
 from app.schemas import PartyLogoIn, PartyOut, SurveyIn, SurveyOut
 from app.security import admin_user
 from app.asistencia import sincronizar_asistencia
+from app.patrimonio import cargar_declaracion, sincronizar_patrimonio
+from app.routes.patrimonio import patrimonio_out
+from app.schemas import PatrimonioOut
 from app.sync import sincronizar_todo
 
 router = APIRouter(prefix="/admin", tags=["Administración"], dependencies=[Depends(admin_user)])
@@ -45,6 +48,34 @@ async def sincronizar_asistencia_admin(background: BackgroundTasks, desde: date 
                                        recargar_dias: int = Query(30, ge=0, le=3650)):
     background.add_task(_asistencia_en_segundo_plano, desde.isoformat() if desde else None, recargar_dias)
     return {"message": "Carga de asistencia iniciada; revisa GET /asistencia/diputados en unos minutos"}
+
+
+async def _patrimonio_en_segundo_plano(forzar: bool) -> None:
+    db = SessionLocal()
+    try:
+        await sincronizar_patrimonio(db, forzar=forzar)
+    finally:
+        db.close()
+
+
+@router.post("/patrimonio/sincronizar", status_code=202,
+             summary="Busca en InfoProbidad la declaración más reciente de cada diputado y carga las nuevas")
+async def sincronizar_patrimonio_admin(background: BackgroundTasks, forzar: bool = False):
+    background.add_task(_patrimonio_en_segundo_plano, forzar)
+    return {"message": "Carga de patrimonio iniciada; revisa GET /patrimonio/diputados en unos minutos"}
+
+
+@router.post("/patrimonio/{parl_id}", response_model=PatrimonioOut,
+             summary="Carga a mano una declaración de InfoProbidad (el ID de la URL Declaracion?ID=...)")
+async def cargar_patrimonio(parl_id: int, declaracion_id: int = Query(..., ge=1), db: Session = Depends(get_db)):
+    p = db.get(Parliamentarian, parl_id)
+    if not p:
+        raise HTTPException(status_code=404, detail="Parlamentario no encontrado")
+    try:
+        d = await cargar_declaracion(db, p, declaracion_id)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"No se pudo leer la declaración en InfoProbidad: {e}")
+    return patrimonio_out(d)
 
 
 @router.post("/encuestas", response_model=SurveyOut, status_code=201)

@@ -51,3 +51,6 @@ WIKIPEDIA_API = os.getenv("WIKIPEDIA_API", "https://es.wikipedia.org")
 WIKIPEDIA_USER_AGENT = os.getenv("WIKIPEDIA_USER_AGENT", "VotaInformado/3.0 (https://opendata.camara.cl/)")
 WIKIDATA_API = os.getenv("WIKIDATA_API", "https://www.wikidata.org/w/api.php")
 COMMONS_API = os.getenv("COMMONS_API", "https://commons.wikimedia.org/w/api.php")
+
+# Declaraciones de patrimonio (CPLT + Contraloría, CC BY 4.0)
+INFOPROBIDAD_URL = os.getenv("INFOPROBIDAD_URL", "https://www.infoprobidad.cl")

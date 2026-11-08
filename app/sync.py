@@ -19,6 +19,7 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.asistencia import sincronizar_asistencia
+from app.patrimonio import sincronizar_patrimonio
 from app.camara.client import consultar
 from app.config import COMMONS_API, SENADO_SENADORES_URL, WIKIDATA_API, WIKIPEDIA_API, WIKIPEDIA_USER_AGENT
 from app.distritos import DISTRITOS_VIGENTES, diputados_distrito
@@ -337,7 +338,8 @@ async def sincronizar_logos(db: Session, solo_faltantes: bool = True) -> dict:
 async def sincronizar_todo(db: Session, wikipedia: bool = True) -> dict:
     resultado = {}
     for nombre, tarea in (("partidos", sincronizar_partidos), ("diputados", sincronizar_diputados),
-                          ("senadores", sincronizar_senadores), ("asistencia", sincronizar_asistencia)):
+                          ("senadores", sincronizar_senadores), ("asistencia", sincronizar_asistencia),
+                          ("patrimonio", sincronizar_patrimonio)):
         try:
             resultado[nombre] = await tarea(db)
         except Exception as e:  # una fuente caída no detiene a las demás

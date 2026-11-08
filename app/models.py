@@ -4,7 +4,7 @@ Los datos legislativos (proyectos, votaciones, sesiones) se leen en vivo de la C
 En la base se guardan: usuarios, un padrón de parlamentarios y partidos (para poder
 comentarlos, calificarlos y asociarles encuestas) y la participación de los usuarios.
 """
-from sqlalchemy import (JSON, TIMESTAMP, Boolean, CheckConstraint, Column, ForeignKey, Index, Integer, String, Text,
+from sqlalchemy import (JSON, TIMESTAMP, Boolean, CheckConstraint, Column, Date, ForeignKey, Index, Integer, String, Text,
                         UniqueConstraint, func)
 from sqlalchemy.orm import relationship
 
@@ -161,6 +161,21 @@ class SalaAttendance(Base):
     rebaja_quorum = Column(Boolean, nullable=True)
 
     session = relationship("SalaSession", back_populates="asistencias")
+
+
+# --- Patrimonio (InfoProbidad) ------------------------------------------------------
+
+class PatrimonioDeclaracion(Base):
+    """Declaración de intereses y patrimonio (Id = Id de InfoProbidad), con el JSON original y un resumen."""
+    __tablename__ = "patrimonio_declaraciones"
+
+    id = Column(Integer, primary_key=True, autoincrement=False)
+    parliamentarian_id = Column(Integer, ForeignKey("parliamentarians.id", ondelete="CASCADE"), nullable=False, index=True)
+    fecha = Column(Date, nullable=True)          # Fecha_de_la_Declaracion
+    tipo = Column(String(200), nullable=True)    # p. ej. "Actualización Periódica (Marzo)"
+    datos = Column(JSON, nullable=False)         # JSON completo de InfoProbidad
+    resumen = Column(JSON, nullable=False)       # app.patrimonio.normalizar(datos)
+    cargada_at = Column(TIMESTAMP, server_default=func.current_timestamp(), nullable=False)
 
 
 # --- Participación ------------------------------------------------------------------

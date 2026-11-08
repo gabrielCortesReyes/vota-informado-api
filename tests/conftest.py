@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.camara import client as camara
-from app import sync
+from app import patrimonio, sync
 from app.camara.xml import xml_to_json
 from app.database import Base, SessionLocal, engine
 from app.main import app
@@ -85,6 +85,8 @@ LLAMADAS = []
 def red_falsa(request: httpx.Request) -> httpx.Response:
     """Responde por Cámara, Senado y Wikipedia."""
     host, path = request.url.host, request.url.path
+    if "infoprobidad" in host:  # el listado vacío; tests/test_patrimonio.py simula las declaraciones
+        return httpx.Response(200, text="<script>var datos = [];</script>")
     if "senado" in host:
         return httpx.Response(200, content=SENADORES_XML.encode())
     if "wikidata" in host:
@@ -135,6 +137,7 @@ def api():
         # 1011 trae un distrito antiguo (51): se toma el de app/data, aquí fijado para los Id de prueba
         sync.diputados_distrito = lambda: {"1011": 8}
         sync._cliente = lambda **kw: httpx.AsyncClient(transport=httpx.MockTransport(red_falsa), **kw)
+        patrimonio._cliente = lambda: httpx.AsyncClient(transport=httpx.MockTransport(red_falsa))
         camara.limpiar_cache()
         yield c
     os.remove("test.db")
