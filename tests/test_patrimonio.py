@@ -30,6 +30,8 @@ DECLARACION = {
          "Avaluo_Fiscal": "614.576.536", "Porcentaje_Propiedad": "100", "Fecha_Adquisicion": "2018/09/06"},
         {"Comuna": {"nombre": "SANTIAGO"}, "Direccion": "AGUSTINAS 1185 OF 51", "Rol_Avaluo": "105-162",
          "Avaluo_Fiscal": 72443013, "Porcentaje_Propiedad": 100},
+        {"Comuna": {"nombre": "LAS CONDES"}, "Direccion": "MALAGA 395", "Avaluo_Fiscal": 1000000000,
+         "Porcentaje_Propiedad": "14.29"},
     ],
     "Vehiculos_Motorizados": {"Vehiculo": [{"Marca": "MERCEDES BENZ", "Modelo": "GLS 350D", "Anio_Fabricacion": 2018,
                                             "Avaluo_Fiscal": "$ 40.000.000"}]},
@@ -78,7 +80,8 @@ def test_patrimonio(api, monkeypatch):
     assert d["fuente_url"].endswith("Declaracion?ID=200") and "CC BY 4.0" in d["licencia"]
     assert d["renta_bruta_mensual"] == 5300000
     t = d["totales"]
-    assert t["inmuebles"] == 614576536 + 72443013
+    assert t["inmuebles"] == 614576536 + 72443013 + 142900000  # del bien compartido, solo su 14,29 %
+    assert d["inmuebles"][2]["monto"] == 1000000000
     assert (t["vehiculos"], t["sociedades"], t["valores"], t["pasivos"]) == (40000000, 150000000, 4500000, 500000000)
     assert t["patrimonio_neto"] == t["activos"] - 500000000
     casa = d["inmuebles"][0]

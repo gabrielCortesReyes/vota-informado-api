@@ -188,6 +188,16 @@ def _item(grupo: str, crudo: dict) -> dict:
     }
 
 
+def _parte(grupo: str, item: dict) -> float:
+    """En inmuebles y vehículos el monto es el avalúo del bien completo: se suma solo el % que le pertenece.
+    (En sociedades el valor libro ya corresponde a su participación.)"""
+    monto = item["monto"] or 0
+    pct = item["porcentaje"]
+    if grupo in ("inmuebles", "vehiculos") and pct is not None and 0 < pct < 100:
+        return monto * pct / 100
+    return monto
+
+
 def normalizar(datos: dict) -> dict:
     """Resumen de la declaración: ítems por grupo, totales y patrimonio neto estimado."""
     grupos = {}
@@ -196,14 +206,16 @@ def normalizar(datos: dict) -> dict:
         for s in secciones:
             items += [_item(grupo, i) for i in _items(datos.get(s))]
         grupos[grupo] = items
-    totales = {g: round(sum(i["monto"] or 0 for i in items)) for g, items in grupos.items()}
+    totales = {g: round(sum(_parte(g, i) for i in items)) for g, items in grupos.items()}
     activos = sum(totales[g] for g in ACTIVOS)
     for items in grupos.values():
         for i in items:
             if i["fecha_adquisicion"]:
                 i["fecha_adquisicion"] = i["fecha_adquisicion"].isoformat()
     return {
-        "renta_bruta_mensual": _buscar_rec(datos, ["renta"], numerico=True),
+        "renta_bruta_mensual": _buscar_rec({k: datos.get(k) for k in ("Datos_Entidad_Por_La_Que_Declara",
+                                                                     "Datos_del_Declarante")},
+                                           ["renta", "remuneracion", "sueldo"], numerico=True),
         **grupos,
         "totales": {**totales, "activos": activos, "patrimonio_neto": activos - totales["pasivos"]},
     }
@@ -313,7 +325,10 @@ async def sincronizar_patrimonio(db: Session, forzar: bool = False) -> dict:
                 logger.info(f"Patrimonio: sin declaración para {p.full_name}")
                 continue
             did = _id_fila(fila)
-            if not forzar and db.get(PatrimonioDeclaracion, did):
+            existente = db.get(PatrimonioDeclaracion, did)
+            if not forzar and existente:
+                existente.resumen = normalizar(existente.datos)  # aplica mejoras de la normalización sin descargar
+                db.commit()
                 resultado["sin_cambios"] += 1
                 continue
             try:

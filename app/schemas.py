@@ -284,7 +284,8 @@ class PatrimonioOut(BaseModel):
     fuente_url: str
     licencia: str
     advertencia: str = ("Montos declarados por el propio diputado: avalúo fiscal de inmuebles y vehículos, valor libro "
-                        "de sociedades y valor corriente de instrumentos. El valor comercial suele ser mayor.")
+                        "de sociedades y valor corriente de instrumentos. En bienes compartidos se suma solo su porcentaje. "
+                        "El valor comercial suele ser mayor.")
     renta_bruta_mensual: Optional[float] = None
     totales: PatrimonioTotales
     inmuebles: list[PatrimonioItem] = []
