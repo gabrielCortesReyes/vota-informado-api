@@ -250,3 +250,35 @@ class SurveyAnswer(Base):
     value = Column(String(1000), nullable=False)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp(), nullable=False)
     updated_at = Column(TIMESTAMP, nullable=True, onupdate=func.current_timestamp())
+
+
+# --- Moderación (App Store 1.2: reportar contenido y bloquear usuarios) ---------------
+
+class CommentReport(Base):
+    """Denuncia de un comentario; una por usuario y comentario."""
+    __tablename__ = "comment_reports"
+    __table_args__ = (UniqueConstraint("comment_id", "reporter_id"),)
+
+    id = Column(Integer, primary_key=True)
+    comment_id = Column(Integer, ForeignKey("comments.id"), nullable=False, index=True)
+    reporter_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    motivo = Column(String(20), nullable=False)  # spam | ofensivo | acoso | otro
+    detalle = Column(String(500), nullable=True)
+    status = Column(String(20), nullable=False, default="pendiente")  # pendiente | resuelto | descartado
+    created_at = Column(TIMESTAMP, server_default=func.current_timestamp(), nullable=False)
+
+    comment = relationship("Comment")
+    reporter = relationship("User")
+
+
+class UserBlock(Base):
+    """Un usuario deja de ver los comentarios de otro."""
+    __tablename__ = "user_blocks"
+    __table_args__ = (UniqueConstraint("blocker_id", "blocked_id"),)
+
+    id = Column(Integer, primary_key=True)
+    blocker_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    blocked_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(TIMESTAMP, server_default=func.current_timestamp(), nullable=False)
+
+    blocked = relationship("User", foreign_keys=[blocked_id])

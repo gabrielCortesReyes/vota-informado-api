@@ -1,14 +1,16 @@
-"""Administración: sincronizar el padrón, crear encuestas y moderar comentarios."""
-from datetime import date
+"""Administración: sincronizar el padrón, crear encuestas y moderar comentarios y reportes."""
+from datetime import date, datetime, timezone
+from typing import Literal, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlalchemy import func
+from sqlalchemy.orm import Session, joinedload
 
 from app.database import SessionLocal, get_db
-from app.models import Comment, Parliamentarian, Party, Survey
+from app.models import Comment, CommentReport, Parliamentarian, Party, Survey
 from app.routes.encuestas import crear_encuesta
-from app.schemas import PartyLogoIn, PartyOut, SurveyIn, SurveyOut
+from app.schemas import CommentReportOut, PartyLogoIn, PartyOut, ReportDecisionIn, SurveyIn, SurveyOut
 from app.security import admin_user
 from app.asistencia import sincronizar_asistencia
 from app.patrimonio import cargar_declaracion, sincronizar_patrimonio
@@ -110,6 +112,55 @@ def moderar(comment_id: int, body: Moderation, db: Session = Depends(get_db)):
     c.hidden = body.hidden
     db.commit()
     return {"id": c.id, "hidden": c.hidden}
+
+
+@router.delete("/comentarios/{comment_id}", status_code=204, summary="Eliminar un comentario (moderación)")
+def eliminar_comentario(comment_id: int, db: Session = Depends(get_db)):
+    c = db.get(Comment, comment_id)
+    if not c:
+        raise HTTPException(status_code=404, detail="Comentario no encontrado")
+    c.deleted_at = c.deleted_at or datetime.now(timezone.utc)
+    db.query(CommentReport).filter_by(comment_id=c.id, status="pendiente").update({"status": "resuelto"})
+    db.commit()
+    return Response(status_code=204)
+
+
+def _reporte_out(r: CommentReport, conteo: dict[int, int]) -> CommentReportOut:
+    c = r.comment
+    return CommentReportOut(id=r.id, comment_id=c.id, comentario=c.text, autor=c.user.display_name,
+                            autor_id=c.user_id, comentario_oculto=bool(c.hidden or c.deleted_at),
+                            reportes_del_comentario=conteo.get(c.id, 0), motivo=r.motivo, detalle=r.detalle,
+                            status=r.status, created_at=r.created_at)
+
+
+@router.get("/reportes", response_model=list[CommentReportOut],
+            summary="Comentarios reportados (los más nuevos primero)")
+def reportes(status: Optional[Literal["pendiente", "resuelto", "descartado"]] = "pendiente",
+             limit: int = Query(100, le=500), offset: int = 0, db: Session = Depends(get_db)):
+    query = db.query(CommentReport).options(joinedload(CommentReport.comment).joinedload(Comment.user))
+    if status:
+        query = query.filter(CommentReport.status == status)
+    rows = query.order_by(CommentReport.created_at.desc(), CommentReport.id.desc()).offset(offset).limit(limit).all()
+    ids = {r.comment_id for r in rows}
+    conteo = dict(db.query(CommentReport.comment_id, func.count()).filter(CommentReport.comment_id.in_(ids))
+                  .group_by(CommentReport.comment_id).all()) if ids else {}
+    return [_reporte_out(r, conteo) for r in rows]
+
+
+@router.patch("/reportes/{report_id}", response_model=CommentReportOut,
+              summary="Resolver o descartar un reporte; se aplica a todos los reportes pendientes del comentario")
+def decidir_reporte(report_id: int, body: ReportDecisionIn, db: Session = Depends(get_db)):
+    r = db.get(CommentReport, report_id)
+    if not r:
+        raise HTTPException(status_code=404, detail="Reporte no encontrado")
+    db.query(CommentReport).filter_by(comment_id=r.comment_id, status="pendiente").update({"status": body.status})
+    r.status = body.status
+    if body.ocultar_comentario is not None:
+        r.comment.hidden = body.ocultar_comentario
+    db.commit()
+    db.refresh(r)
+    total = db.query(CommentReport).filter_by(comment_id=r.comment_id).count()
+    return _reporte_out(r, {r.comment_id: total})
 
 
 @router.patch("/partidos/{party_id}/logo", response_model=PartyOut,

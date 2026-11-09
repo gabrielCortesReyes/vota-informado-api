@@ -1,14 +1,15 @@
-"""Perfil y preferencias del usuario autenticado: comuna, distrito y a quién votó."""
+"""Perfil y preferencias del usuario autenticado: comuna, distrito y a quién votó; eliminar la cuenta."""
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.distritos import diputados_del_distrito, distrito_de_comuna, ultima_votacion_id, votos_del_distrito
-from app.models import Parliamentarian, User, UserPreferences
-from app.schemas import MiDistritoOut, UserPreferencesSchema, UserSchema
-from app.security import current_user
+from app.models import (Comment, CommentReport, Parliamentarian, Rating, SurveyAnswer, User, UserBlock, UserCredentials,
+                        UserPreferences)
+from app.schemas import DeleteAccountIn, MiDistritoOut, UserPreferencesSchema, UserSchema
+from app.security import current_user, pwd_context
 
 router = APIRouter(prefix="/user", tags=["Usuario"])
 
@@ -47,6 +48,29 @@ async def aplicar_preferencias(db: Session, prefs: UserPreferences, cambios: dic
 @router.get("/me", response_model=UserSchema)
 async def me(user: User = Depends(current_user)):
     return user
+
+
+@router.delete("/me", status_code=204,
+               summary="Eliminar mi cuenta y mis datos (preferencias, calificaciones, encuestas, comentarios)")
+def eliminar_cuenta(body: DeleteAccountIn, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    cred = user.credentials
+    if not cred or not pwd_context.verify(body.password, cred.hashed_password):
+        raise HTTPException(status_code=403, detail="Contraseña incorrecta")
+    borrar_usuario(db, user.id)
+    db.commit()
+    return Response(status_code=204)  # los tokens dejan de servir: el usuario ya no existe
+
+
+def borrar_usuario(db: Session, user_id: int) -> None:
+    """Borra al usuario y todo lo suyo (sin commit)."""
+    mis_comentarios = db.query(Comment.id).filter(Comment.user_id == user_id)
+    db.query(CommentReport).filter((CommentReport.reporter_id == user_id)
+                                   | CommentReport.comment_id.in_(mis_comentarios)).delete(synchronize_session=False)
+    db.query(UserBlock).filter((UserBlock.blocker_id == user_id)
+                               | (UserBlock.blocked_id == user_id)).delete(synchronize_session=False)
+    for modelo in (Comment, Rating, SurveyAnswer, UserPreferences, UserCredentials):
+        db.query(modelo).filter(modelo.user_id == user_id).delete(synchronize_session=False)
+    db.query(User).filter(User.id == user_id).delete(synchronize_session=False)
 
 
 @router.get("/me/preferences", response_model=UserPreferencesSchema)

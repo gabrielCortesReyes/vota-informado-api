@@ -176,10 +176,48 @@ class CommentOut(BaseModel):
     id: int
     parliamentarian_id: int
     autor: str
+    autor_id: int  # para bloquearlo: POST /usuarios/{autor_id}/bloquear
     es_mio: bool = False
     text: str
     created_at: datetime
     updated_at: Optional[datetime] = None
+
+
+ReportReason = Literal["spam", "ofensivo", "acoso", "otro"]
+
+
+class CommentReportIn(BaseModel):
+    motivo: ReportReason
+    detalle: Optional[str] = Field(None, max_length=500)
+
+
+class BlockedUserOut(BaseModel):
+    id: int
+    nombre: str
+    bloqueado_at: datetime
+
+
+class DeleteAccountIn(BaseModel):
+    password: str = Field(description="Contraseña actual, para confirmar")
+
+
+class CommentReportOut(BaseModel):
+    id: int
+    comment_id: int
+    comentario: str
+    autor: str
+    autor_id: int
+    comentario_oculto: bool
+    reportes_del_comentario: int
+    motivo: ReportReason
+    detalle: Optional[str] = None
+    status: str
+    created_at: datetime
+
+
+class ReportDecisionIn(BaseModel):
+    status: Literal["resuelto", "descartado"]
+    ocultar_comentario: Optional[bool] = Field(None, description="true oculta el comentario; false lo vuelve a mostrar")
 
 
 class RatingIn(BaseModel):

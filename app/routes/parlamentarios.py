@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.asistencia import resumen_diputado
 from app.database import get_db
 from app.distritos import diputados_del_distrito
-from app.models import Comment, Parliamentarian, Party, Rating, User
+from app.models import Comment, Parliamentarian, Party, Rating, User, UserBlock
 from app.schemas import (AsistenciaResumen, CommentIn, CommentOut, ParliamentarianDetail, ParliamentarianOut, PartyWithCount,
                          RatingIn, RatingOut, RatingSummary)
 from app.security import current_user, decode, get_active_user
@@ -109,7 +109,7 @@ def detalle(parl_id: int, db: Session = Depends(get_db)):
 # --- Comentarios ------------------------------------------------------------------------
 
 def _comment_out(c: Comment, viewer: Optional[User]) -> CommentOut:
-    return CommentOut(id=c.id, parliamentarian_id=c.parliamentarian_id, autor=c.user.display_name,
+    return CommentOut(id=c.id, parliamentarian_id=c.parliamentarian_id, autor=c.user.display_name, autor_id=c.user_id,
                       es_mio=bool(viewer and viewer.id == c.user_id), text=c.text,
                       created_at=c.created_at, updated_at=c.updated_at)
 
@@ -118,9 +118,12 @@ def _comment_out(c: Comment, viewer: Optional[User]) -> CommentOut:
 def ver_comentarios(parl_id: int, limit: int = Query(50, le=200), offset: int = 0,
                     db: Session = Depends(get_db), viewer: Optional[User] = Depends(_optional_user)):
     _get(db, parl_id)
-    rows = (db.query(Comment).options(joinedload(Comment.user))
-            .filter(Comment.parliamentarian_id == parl_id, Comment.deleted_at.is_(None), Comment.hidden.is_(False))
-            .order_by(Comment.created_at.desc(), Comment.id.desc()).offset(offset).limit(limit).all())
+    query = (db.query(Comment).options(joinedload(Comment.user))
+             .filter(Comment.parliamentarian_id == parl_id, Comment.deleted_at.is_(None), Comment.hidden.is_(False)))
+    if viewer:  # sin los comentarios de quienes bloqueó
+        bloqueados = db.query(UserBlock.blocked_id).filter(UserBlock.blocker_id == viewer.id)
+        query = query.filter(Comment.user_id.not_in(bloqueados))
+    rows = query.order_by(Comment.created_at.desc(), Comment.id.desc()).offset(offset).limit(limit).all()
     return [_comment_out(c, viewer) for c in rows]
 
 
