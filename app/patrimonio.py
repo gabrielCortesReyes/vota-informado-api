@@ -276,16 +276,29 @@ def _id_fila(fila: dict) -> int | None:
         return None
 
 
+def _tiene(texto: str, token: str) -> bool:
+    return re.search(rf"\b{re.escape(token)}\b", texto) is not None
+
+
 def buscar_declaraciones(filas: list[dict], p: Parliamentarian) -> list[dict]:
-    """Filas del listado que corresponden a un diputado: nombre y apellidos completos y cargo de diputado."""
-    nombres = [_norm(x) for x in (p.first_name, p.last_name, p.second_last_name) if x]
-    tokens = [t for n in nombres for t in n.split()]
-    encontradas = []
+    """Filas del listado que corresponden a un diputado.
+
+    Se exigen los dos apellidos y al menos uno de los nombres (la Cámara a veces agrega un nombre de uso,
+    p. ej. «Coca Ericka», que no está en InfoProbidad). Primero se buscan filas con cargo de diputado;
+    si no hay, se aceptan las que traen el nombre completo con cualquier cargo (p. ej. candidato electo).
+    """
+    apellidos = [t for x in (p.last_name, p.second_last_name) if x for t in _norm(x).split()]
+    nombres = _norm(p.first_name).split()
+    diputado, completas = [], []
     for fila in filas:
         texto = _texto_fila(fila)
-        if "diputad" in texto and all(re.search(rf"\b{re.escape(t)}\b", texto) for t in tokens):
-            encontradas.append(fila)
-    return encontradas
+        if not all(_tiene(texto, t) for t in apellidos) or not any(_tiene(texto, t) for t in nombres):
+            continue
+        if "diputad" in texto:
+            diputado.append(fila)
+        elif all(_tiene(texto, t) for t in nombres):
+            completas.append(fila)
+    return diputado or completas
 
 
 def mas_reciente(filas: list[dict]) -> dict | None:

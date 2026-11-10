@@ -110,3 +110,23 @@ def test_patrimonio(api, monkeypatch):
     otro = api.get("/parlamentarios").json()
     sin = next(p["id"] for p in otro if p["id"] != ana)
     assert api.get(f"/parlamentarios/{sin}/patrimonio").status_code == 404
+
+
+def test_busqueda_por_nombre():
+    nanco = Parliamentarian(first_name="Coca Ericka", last_name="Ñanco", second_last_name="Vásquez")
+    filas = [
+        {"IdDeclaracion": 1, "Nombre": "ERICKA", "ApellidoPaterno": "ÑANCO", "ApellidoMaterno": "VASQUEZ",
+         "Cargo": "DIPUTADO/DA"},
+        {"IdDeclaracion": 2, "Nombre": "ERICKA", "ApellidoPaterno": "ÑANCO", "ApellidoMaterno": "PEREZ",
+         "Cargo": "DIPUTADO/DA"},
+    ]
+    assert [f["IdDeclaracion"] for f in patrimonio.buscar_declaraciones(filas, nanco)] == [1]
+    # sin cargo de diputado, solo con el nombre completo
+    mella = Parliamentarian(first_name="Cristian", last_name="Mella", second_last_name="Andaur")
+    filas = [{"IdDeclaracion": 3, "Nombre": "CRISTIAN", "ApellidoPaterno": "MELLA", "ApellidoMaterno": "ANDAUR",
+              "Cargo": "CANDIDATO A DIPUTADO"},
+             {"IdDeclaracion": 4, "Nombre": "CRISTIAN", "ApellidoPaterno": "MELLA", "ApellidoMaterno": "ANDAUR",
+              "Cargo": "CONCEJAL"}]
+    assert [f["IdDeclaracion"] for f in patrimonio.buscar_declaraciones(filas, mella)] == [3]
+    filas = [filas[1]]
+    assert [f["IdDeclaracion"] for f in patrimonio.buscar_declaraciones(filas, mella)] == [4]
