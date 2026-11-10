@@ -41,6 +41,9 @@ CACHE_TTL = int(os.getenv("CACHE_TTL_SECONDS", "3600"))  # 1 hora
 PERIODO_INICIO = os.getenv("PERIODO_INICIO", "2026-03-11")
 # Las sesiones de los últimos N días se vuelven a leer: la Cámara agrega justificaciones después
 ASISTENCIA_RECARGAR_DIAS = int(os.getenv("ASISTENCIA_RECARGAR_DIAS", "30"))
+# Proyectos de ley: cuántos detalles (materias y autores) se piden por corrida y desde qué año
+PROYECTOS_DETALLES_POR_CORRIDA = int(os.getenv("PROYECTOS_DETALLES_POR_CORRIDA", "500"))
+PROYECTOS_DESDE_ANNO = int(os.getenv("PROYECTOS_DESDE_ANNO", "2025"))
 
 WPP_ENDPOINT = os.getenv("WPP_ENDPOINT")
 WPP_TOKEN = os.getenv("WPP_TOKEN")

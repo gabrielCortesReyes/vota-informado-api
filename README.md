@@ -93,6 +93,8 @@ Catálogos: `comunas`, `distritos`, `regiones`, `provincias`, `ministerios`, `pa
 | GET/POST | `/user/me/preferences` | Comuna (`Numero` de `/catalogos/comunas`) y a quién votó: `district_vote` = `diputado` (con `voted_parliamentarian_id`, que debe ser de su distrito), `otro`, `no_voto` o `no_responde`. Solo cambian los campos enviados |
 | GET | `/user/me/distrito` | Distrito del usuario según su comuna, sus diputados y a quién votó |
 | GET | `/user/me/distrito/votaciones/{id}` (o `/ultima`) | Cómo votó cada diputado de su distrito; el suyo va primero con `es_mi_diputado` |
+| GET/PUT | `/user/me/materias` | Materias que le interesan: `{"materia_ids": [..]}` reemplaza la lista |
+| GET | `/user/me/materias/proyectos?limit=&offset=` | Proyectos de ley de sus materias, del más reciente |
 
 **Parlamentarios y participación** (leer es público; escribir requiere token)
 
@@ -104,6 +106,10 @@ Catálogos: `comunas`, `distritos`, `regiones`, `provincias`, `ministerios`, `pa
 | GET | `/votaciones/{id}/distrito/{n}` | Cómo votaron los diputados de un distrito |
 | GET | `/parlamentarios/{id}` | Ficha: partido, región, contacto, descripción y foto de Wikipedia, promedio de calificación y resumen de `asistencia` (diputados) |
 | GET | `/parlamentarios/{id}/asistencia?desde=&hasta=` | % de asistencia a la Sala, cada sesión a la que no asistió y su justificación (diputados) |
+| GET | `/materias/categorias` | Materias con proyectos guardados y cuántos tiene cada una |
+| GET | `/materias/{id}/proyectos?limit=&offset=` | Proyectos de una materia (formato de la Cámara + `Materias` y `Autores`) |
+| GET | `/parlamentarios/{id}/materias?desde=` | En qué materias presenta mociones un diputado (`mociones`, `con_materia`, top de materias) |
+| GET | `/parlamentarios/{id}/mociones?materia=` | Mociones de las que es autor |
 | GET | `/asistencia/diputados?orden=desc&partido_id=&distrito=` | Asistencia de todos los diputados en ejercicio, ordenada por % |
 | GET/POST | `/parlamentarios/{id}/comentarios` | Ver y dejar comentarios (se muestra "María S.") |
 | PUT/DELETE | `/comentarios/{id}` | Editar o borrar un comentario propio |
@@ -124,6 +130,7 @@ Al arrancar se crea la encuesta **"Evaluación de tu parlamentario"**: ¿Votaste
 |---|---|---|
 | POST | `/admin/sincronizar?wikipedia=true` | Recarga partidos, diputados, senadores, asistencia y descripciones |
 | POST | `/admin/asistencia/sincronizar?desde=2026-03-11&recargar_dias=30` | Carga solo la asistencia a la Sala |
+| POST | `/admin/proyectos/sincronizar?desde_anno=2025&limite=500` | Carga mociones y mensajes y pide el detalle (materias y autores) de los que falten |
 | POST | `/admin/encuestas` | Crear una encuesta nueva |
 | PATCH | `/admin/encuestas/{id}` | `{"active": false}` para cerrarla |
 | PATCH | `/admin/comentarios/{id}` | `{"hidden": true}` para ocultar un comentario |
@@ -131,6 +138,12 @@ Al arrancar se crea la encuesta **"Evaluación de tu parlamentario"**: ¿Votaste
 
 Rutas con token: header `Authorization: Bearer <access_token>`.
 Otras: `/health`, `/cache/clear` (requiere token).
+
+**Materias**: la Cámara no deja buscar proyectos por materia y los listados por año no traen materias
+ni autores. La sincronización diaria (`app/proyectos.py`) guarda mociones y mensajes desde
+`PROYECTOS_DESDE_ANNO` (2025) y pide el detalle de hasta `PROYECTOS_DETALLES_POR_CORRIDA` (500) proyectos
+por corrida; los de los últimos 90 días se releen cada 7 (la Cámara asigna materias después).
+Primera carga: `python -m app.cli proyectos --limite 3000` o varias veces `POST /admin/proyectos/sincronizar`.
 
 Errores: `404` si la Cámara no tiene el dato, `502` si la Cámara no responde o rechaza los parámetros.
 

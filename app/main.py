@@ -15,7 +15,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.camara import client
 from app.database import SessionLocal, init_db
-from app.routes import (admin, asistencia, auth, catalogos, diputados, encuestas, legislativo, moderacion,
+from app.routes import (admin, asistencia, auth, catalogos, diputados, encuestas, legislativo, materias, moderacion,
                         parlamentarios, patrimonio, sala, usuario)
 from app.security import current_user, limiter
 
@@ -49,7 +49,7 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-for r in (legislativo, diputados, sala, asistencia, catalogos, parlamentarios, moderacion, patrimonio, encuestas, auth, usuario,
+for r in (materias, legislativo, diputados, sala, asistencia, catalogos, parlamentarios, moderacion, patrimonio, encuestas, auth, usuario,
           admin):
     app.include_router(r.router)
 

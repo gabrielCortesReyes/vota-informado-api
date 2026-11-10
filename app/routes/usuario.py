@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.distritos import diputados_del_distrito, distrito_de_comuna, ultima_votacion_id, votos_del_distrito
 from app.models import (Comment, CommentReport, Parliamentarian, Rating, SurveyAnswer, User, UserBlock, UserCredentials,
-                        UserPreferences)
+                        UserMateria, UserPreferences)
 from app.schemas import DeleteAccountIn, MiDistritoOut, UserPreferencesSchema, UserSchema
 from app.security import current_user, pwd_context
 
@@ -68,7 +68,7 @@ def borrar_usuario(db: Session, user_id: int) -> None:
                                    | CommentReport.comment_id.in_(mis_comentarios)).delete(synchronize_session=False)
     db.query(UserBlock).filter((UserBlock.blocker_id == user_id)
                                | (UserBlock.blocked_id == user_id)).delete(synchronize_session=False)
-    for modelo in (Comment, Rating, SurveyAnswer, UserPreferences, UserCredentials):
+    for modelo in (Comment, Rating, SurveyAnswer, UserMateria, UserPreferences, UserCredentials):
         db.query(modelo).filter(modelo.user_id == user_id).delete(synchronize_session=False)
     db.query(User).filter(User.id == user_id).delete(synchronize_session=False)
 

@@ -178,6 +178,57 @@ class PatrimonioDeclaracion(Base):
     cargada_at = Column(TIMESTAMP, server_default=func.current_timestamp(), nullable=False)
 
 
+# --- Proyectos de ley y sus materias (WSLegislativo) ----------------------------------
+
+class Materia(Base):
+    """Materia legislativa de la Cámara (Id = Id de la Cámara): funciona como categoría de los proyectos."""
+    __tablename__ = "materias"
+
+    id = Column(Integer, primary_key=True, autoincrement=False)
+    nombre = Column(String(300), nullable=False)
+
+
+class ProyectoLey(Base):
+    """Moción o mensaje (Id = Id de la Cámara), con sus materias y autores tomados del detalle."""
+    __tablename__ = "proyectos_ley"
+
+    id = Column(Integer, primary_key=True, autoincrement=False)
+    boletin = Column(String(20), nullable=False, unique=True)
+    nombre = Column(Text, nullable=False)
+    fecha_ingreso = Column(TIMESTAMP, nullable=True, index=True)
+    tipo = Column(String(30), nullable=True)            # "Moción" | "Mensaje"
+    camara_origen = Column(String(50), nullable=True)
+    detalle_cargado_at = Column(TIMESTAMP, nullable=True)  # None = falta pedir materias y autores
+
+    materias = relationship("Materia", secondary="proyecto_materias", order_by="Materia.nombre")
+    autores = relationship("ProyectoAutor", cascade="all, delete-orphan", order_by="ProyectoAutor.orden")
+
+
+class ProyectoMateria(Base):
+    __tablename__ = "proyecto_materias"
+
+    proyecto_id = Column(Integer, ForeignKey("proyectos_ley.id", ondelete="CASCADE"), primary_key=True)
+    materia_id = Column(Integer, ForeignKey("materias.id", ondelete="CASCADE"), primary_key=True, index=True)
+
+
+class ProyectoAutor(Base):
+    """Diputado autor de una moción (diputado_id = Id de la Cámara = Parliamentarian.external_id)."""
+    __tablename__ = "proyecto_autores"
+
+    proyecto_id = Column(Integer, ForeignKey("proyectos_ley.id", ondelete="CASCADE"), primary_key=True)
+    diputado_id = Column(Integer, primary_key=True, index=True)
+    orden = Column(Integer, nullable=True)
+
+
+class UserMateria(Base):
+    """Materias que le interesan a un usuario."""
+    __tablename__ = "user_materias"
+
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    materia_id = Column(Integer, ForeignKey("materias.id", ondelete="CASCADE"), primary_key=True)
+    created_at = Column(TIMESTAMP, server_default=func.current_timestamp(), nullable=False)
+
+
 # --- Participación ------------------------------------------------------------------
 
 class Comment(Base):

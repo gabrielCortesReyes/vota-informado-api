@@ -17,6 +17,7 @@ from app.patrimonio import cargar_declaracion, sincronizar_patrimonio
 from app.routes.patrimonio import patrimonio_out
 from app.schemas import PatrimonioOut
 from app.sync import sincronizar_todo
+from app.proyectos import sincronizar_proyectos
 
 router = APIRouter(prefix="/admin", tags=["Administración"], dependencies=[Depends(admin_user)])
 
@@ -34,6 +35,22 @@ async def _sync_en_segundo_plano(wikipedia: bool) -> None:
 async def sincronizar(background: BackgroundTasks, wikipedia: bool = True):
     background.add_task(_sync_en_segundo_plano, wikipedia)
     return {"message": "Sincronización iniciada; revisa los logs o GET /parlamentarios en unos minutos"}
+
+
+async def _proyectos_en_segundo_plano(desde_anno: int | None, limite: int) -> None:
+    db = SessionLocal()
+    try:
+        await sincronizar_proyectos(db, desde_anno=desde_anno, limite=limite)
+    finally:
+        db.close()
+
+
+@router.post("/proyectos/sincronizar", status_code=202,
+             summary="Carga mociones y mensajes y pide el detalle (materias y autores) de los que falten")
+async def sincronizar_proyectos_admin(background: BackgroundTasks, desde_anno: int | None = Query(None, ge=1990, le=2100),
+                                      limite: int = Query(500, ge=1, le=5000)):
+    background.add_task(_proyectos_en_segundo_plano, desde_anno, limite)
+    return {"message": "Carga de proyectos iniciada; revisa GET /materias/categorias en unos minutos"}
 
 
 async def _asistencia_en_segundo_plano(desde: str | None, recargar_dias: int) -> None:
