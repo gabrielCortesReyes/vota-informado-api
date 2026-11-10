@@ -55,6 +55,8 @@ def _red(request: httpx.Request) -> httpx.Response:
         sid = int(request.url.params["prmSesionId"])
         PEDIDAS.append(sid)
         body = f"<SesionSala {NS}><Id>{sid}</Id><ListadoAsistencia>{ASISTENCIA.get(sid, '')}</ListadoAsistencia></SesionSala>"
+    elif op == "retornarVotacionDetalle" and request.url.params["prmVotacionId"] == "50000":
+        body = f"<Votacion {NS}><Id>50000</Id><Fecha>2026-06-03T11:30:00</Fecha><Votos/></Votacion>"
     else:
         return camara_falsa(request)
     return httpx.Response(200, content=body.encode())
@@ -98,6 +100,15 @@ def test_asistencia(api):
         # filtro por fecha
         d = api.get(f"/parlamentarios/{ana}/asistencia", params={"desde": "2026-06-03", "hasta": "2026-06-03"}).json()
         assert (d["sesiones"], d["porcentaje"]) == (1, 0.0)
+
+        # la justificación en el momento de una votación (sesión 4801, del mismo día)
+        v = api.get("/votaciones/50000/asistencia").json()
+        assert v["sesion"]["id"] == 4801
+        por_dip = {f["diputado_id"]: f for f in v["asistencia"]}
+        assert por_dip[1009] == {"diputado_id": 1009, "asistio": False, "justificacion": "Licencia médica (Art. 42)"}
+        assert por_dip[1010]["asistio"] is True
+        v = api.get("/votaciones/40000/asistencia").json()  # sin sesión cargada ese día
+        assert v["sesion"] is None and v["asistencia"] == []
 
         # la ficha trae el resumen
         assert api.get(f"/parlamentarios/{ana}").json()["asistencia"]["porcentaje"] == 33.3

@@ -110,6 +110,7 @@ Catálogos: `comunas`, `distritos`, `regiones`, `provincias`, `ministerios`, `pa
 | GET | `/materias/{id}/proyectos?limit=&offset=` | Proyectos de una materia (formato de la Cámara + `Materias` y `Autores`) |
 | GET | `/parlamentarios/{id}/materias?desde=` | En qué materias presenta mociones un diputado (`mociones`, `con_materia`, top de materias) |
 | GET | `/parlamentarios/{id}/mociones?materia=` | Mociones de las que es autor |
+| GET | `/votaciones/{id}/asistencia` | Asistencia a la sesión de esa votación: quién no asistió y su justificación |
 | GET | `/asistencia/diputados?orden=desc&partido_id=&distrito=` | Asistencia de todos los diputados en ejercicio, ordenada por % |
 | GET/POST | `/parlamentarios/{id}/comentarios` | Ver y dejar comentarios (se muestra "María S.") |
 | PUT/DELETE | `/comentarios/{id}` | Editar o borrar un comentario propio |

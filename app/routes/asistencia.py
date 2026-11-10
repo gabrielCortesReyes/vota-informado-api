@@ -1,12 +1,13 @@
 """Asistencia de los diputados a la Sala y justificación de cada inasistencia (datos oficiales WSSala)."""
 from collections import Counter
-from datetime import date
+from datetime import date, datetime
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 
 from app import asistencia as a
+from app.camara.client import consultar_o_404
 from app.database import get_db
 from app.models import Parliamentarian
 from app.schemas import AsistenciaDetalle, AsistenciaDiputado
@@ -53,3 +54,23 @@ def asistencia_diputados(desde: Optional[date] = DESDE, hasta: Optional[date] = 
              for p in q.all() if p.external_id in resumenes]
     filas.sort(key=lambda f: (f.porcentaje or 0, -f.sin_justificar), reverse=orden == "desc")
     return filas
+
+
+@router.get("/votaciones/{votacion_id}/asistencia",
+            summary="Asistencia a la sesión en que se votó: quién no asistió y su justificación")
+async def asistencia_votacion(votacion_id: int, db: Session = Depends(get_db)):
+    detalle = await consultar_o_404("WSLegislativo", "retornarVotacionDetalle", "Votación no encontrada",
+                                    prmVotacionId=votacion_id)
+    try:
+        fecha = datetime.fromisoformat(str(detalle.get("Fecha")))
+    except (TypeError, ValueError):
+        fecha = None
+    sesion = a.sesion_de_votacion(db, fecha) if fecha else None
+    filas = a.asistencia_de_sesion(db, sesion.id) if sesion else []
+    return {
+        "votacion_id": votacion_id,
+        "sesion": {"id": sesion.id, "numero": sesion.numero, "fecha": sesion.fecha_inicio,
+                   "tipo": sesion.tipo, "fuente_url": a.fuente_url(sesion.id)} if sesion else None,
+        "asistencia": [{"diputado_id": f.diputado_id, "asistio": f.asistio, "justificacion": f.justificacion}
+                       for f in filas],
+    }

@@ -183,3 +183,16 @@ def inasistencias_diputado(db: Session, diputado_id: int, desde: date | None = N
 
 def ultima_actualizacion(db: Session) -> datetime | None:
     return db.query(func.max(SalaSession.updated_at)).filter(SalaSession.asistencia_cargada.is_(True)).scalar()
+
+
+def sesion_de_votacion(db: Session, fecha: datetime) -> SalaSession | None:
+    """Sesión de Sala en que se votó: la última que empezó ese día antes de la votación (o la primera del día)."""
+    dia = datetime.combine(fecha.date(), datetime.min.time())
+    del_dia = (db.query(SalaSession).filter(SalaSession.fecha_inicio >= dia, SalaSession.fecha_inicio < dia + timedelta(days=1))
+               .order_by(SalaSession.fecha_inicio).all())
+    antes = [s for s in del_dia if s.fecha_inicio <= fecha + timedelta(minutes=5)]
+    return antes[-1] if antes else (del_dia[0] if del_dia else None)
+
+
+def asistencia_de_sesion(db: Session, sesion_id: int) -> list[SalaAttendance]:
+    return db.query(SalaAttendance).filter(SalaAttendance.session_id == sesion_id).all()
