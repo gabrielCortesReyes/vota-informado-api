@@ -10,6 +10,7 @@ presenta mociones cada diputado.
 """
 import asyncio
 import logging
+import re
 from datetime import date, datetime, timedelta
 
 from sqlalchemy import func
@@ -140,7 +141,6 @@ async def sincronizar_proyectos(db: Session, desde_anno: int | None = None,
                     resultado["proyectos"] += 1
             db.commit()
 
-    pendientes = _pendientes(db, limite)
     sem = asyncio.Semaphore(CONCURRENCIA)
 
     async def pedir(boletin: str):
@@ -152,6 +152,27 @@ async def sincronizar_proyectos(db: Session, desde_anno: int | None = None,
                 return e
 
     cache: dict[int, Materia] = {}
+    # Proyectos votados este año pero ingresados antes de desde_anno: también se guardan, para
+    # mostrar las materias de cada votación.
+    resultado["votados"] = 0
+    try:
+        votados = {boletin_de(v.get("Descripcion")) for v in await _votaciones_del_anno(date.today().year)}
+        votados.discard(None)
+        existentes = {b for (b,) in db.query(ProyectoLey.boletin).filter(ProyectoLey.boletin.in_(votados))} if votados else set()
+        faltantes = sorted(votados - existentes)[: max(limite // 5, 1)]
+        for detalle in await asyncio.gather(*(pedir(b) for b in faltantes)):
+            if isinstance(detalle, dict) and isinstance(detalle.get("Id"), int):
+                p = _upsert_listado(db, detalle)
+                if p:
+                    db.flush()
+                    aplicar_detalle(db, p, detalle, cache)
+                    resultado["votados"] += 1
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.warning(f"No se pudieron cargar los proyectos votados: {e}")
+
+    pendientes = _pendientes(db, limite)
     for i in range(0, len(pendientes), 50):  # de a 50 para guardar el avance
         lote = pendientes[i:i + 50]
         detalles = await asyncio.gather(*(pedir(p.boletin) for p in lote))
@@ -165,6 +186,19 @@ async def sincronizar_proyectos(db: Session, desde_anno: int | None = None,
     resultado["pendientes"] = db.query(ProyectoLey).filter(ProyectoLey.detalle_cargado_at.is_(None)).count()
     logger.info(f"Proyectos: {resultado}")
     return resultado
+
+
+_BOLETIN = re.compile(r"(\d{3,5}-\d{1,2})")
+
+
+def boletin_de(texto) -> str | None:
+    """«Boletín N° 18282-07» → «18282-07»."""
+    m = _BOLETIN.search(str(texto or ""))
+    return m.group(1) if m else None
+
+
+async def _votaciones_del_anno(anno: int) -> list[dict]:
+    return [v for v in _lista(await consultar(WS, "retornarVotacionesXAnno", prmAnno=anno)) if isinstance(v, dict)]
 
 
 # --- Consultas ------------------------------------------------------------------------
@@ -203,3 +237,16 @@ def materias_de_diputado(db: Session, diputado_id: int, desde: date | None = Non
                    .filter(ProyectoMateria.proyecto_id.in_(ids)).scalar() if ids else 0)
     return {"mociones": len(ids), "con_materia": con_materia,
             "materias": [{"id": i, "nombre": n, "proyectos": c} for i, n, c in filas]}
+
+
+async def materias_de_votaciones(db: Session, anno: int) -> dict[int, list[dict]]:
+    """Materias del proyecto de cada votación de Sala del año (por el boletín de su descripción)."""
+    por_votacion = {v["Id"]: boletin_de(v.get("Descripcion")) for v in await _votaciones_del_anno(anno)
+                    if isinstance(v.get("Id"), int)}
+    boletines = {b for b in por_votacion.values() if b}
+    if not boletines:
+        return {}
+    proyectos = (db.query(ProyectoLey).filter(ProyectoLey.boletin.in_(boletines))
+                 .options(selectinload(ProyectoLey.materias)).all())
+    materias = {p.boletin: [{"id": m.id, "nombre": m.nombre} for m in p.materias] for p in proyectos}
+    return {vid: materias[b] for vid, b in por_votacion.items() if b in materias and materias[b]}

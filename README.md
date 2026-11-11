@@ -106,6 +106,7 @@ Catálogos: `comunas`, `distritos`, `regiones`, `provincias`, `ministerios`, `pa
 | GET | `/votaciones/{id}/distrito/{n}` | Cómo votaron los diputados de un distrito |
 | GET | `/parlamentarios/{id}` | Ficha: partido, región, contacto, descripción y foto de Wikipedia, promedio de calificación y resumen de `asistencia` (diputados) |
 | GET | `/parlamentarios/{id}/asistencia?desde=&hasta=` | % de asistencia a la Sala, cada sesión a la que no asistió y su justificación (diputados) |
+| GET | `/votaciones/materias?anno=` | Materias del proyecto de cada votación del año: `{votacion_id: [{id, nombre}]}` |
 | GET | `/materias/categorias` | Materias con proyectos guardados y cuántos tiene cada una |
 | GET | `/materias/{id}/proyectos?limit=&offset=` | Proyectos de una materia (formato de la Cámara + `Materias` y `Autores`) |
 | GET | `/parlamentarios/{id}/materias?desde=` | En qué materias presenta mociones un diputado (`mociones`, `con_materia`, top de materias) |

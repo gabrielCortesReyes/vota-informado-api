@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
 from app.models import Materia, Parliamentarian, ProyectoAutor, ProyectoLey, ProyectoMateria, User, UserMateria
-from app.proyectos import materias_con_proyectos, materias_de_diputado, proyectos_de_materias
+from app.proyectos import materias_con_proyectos, materias_de_diputado, materias_de_votaciones, proyectos_de_materias
 from app.security import current_user
 
 router = APIRouter(tags=["Materias"])
@@ -55,6 +55,12 @@ def categorias(db: Session = Depends(get_db)):
         return filas
     # aún sin proyectos cargados: el catálogo completo
     return [{"id": m.id, "nombre": m.nombre, "proyectos": 0} for m in db.query(Materia).order_by(Materia.nombre)]
+
+
+@router.get("/votaciones/materias", tags=["Votaciones"],
+            summary="Materias del proyecto de cada votación de Sala de un año: {votacion_id: [{id, nombre}]}")
+async def materias_votaciones(anno: int | None = Query(None, ge=1990, le=2100), db: Session = Depends(get_db)):
+    return await materias_de_votaciones(db, anno or date.today().year)
 
 
 @router.get("/materias/{materia_id}/proyectos", summary="Proyectos de ley de una materia, del más reciente al más antiguo")

@@ -35,7 +35,17 @@ DETALLES = {
     "18002-11": (f"<Autores>{_autor(1009)}{_autor(1010, 2)}</Autores><Materias><Materia><Id>10</Id><Nombre>EDUCACION</Nombre>"
                  "</Materia><Materia><Id>20</Id><Nombre>SALUD</Nombre></Materia></Materias>"),
     "18003-07": f"<Autores>{_autor(1010)}</Autores><Materias/>",
+    # ingresado en 2019, votado este año
+    "9999-07": ("<Nombre>Proyecto antiguo</Nombre><FechaIngreso>2019-01-01T00:00:00</FechaIngreso>"
+                "<Materias><Materia><Id>30</Id><Nombre>PESCA</Nombre></Materia></Materias>"),
 }
+IDS = {"18001-04": 501, "18002-11": 502, "18003-07": 503, "9999-07": 400}
+VOTACIONES = f"""<VotacionesColeccion {NS}>
+  <Votacion><Id>70001</Id><Descripcion>Boletín N° 18002-11</Descripcion></Votacion>
+  <Votacion><Id>70002</Id><Descripcion>Boletín N° 9999-07</Descripcion></Votacion>
+  <Votacion><Id>70003</Id><Descripcion>Proyecto de Resolución N° 5</Descripcion></Votacion>
+  <Votacion><Id>70004</Id><Descripcion>Boletín N° 18003-07</Descripcion></Votacion>
+</VotacionesColeccion>"""
 
 
 def _red(request: httpx.Request) -> httpx.Response:
@@ -46,7 +56,9 @@ def _red(request: httpx.Request) -> httpx.Response:
         body = MATERIAS
     elif op == "retornarProyectoLey":
         b = request.url.params["prmNumeroBoletin"]
-        body = f"<ProyectoLey {NS}><Id>0</Id><NumeroBoletin>{b}</NumeroBoletin>{DETALLES[b]}</ProyectoLey>"
+        body = f"<ProyectoLey {NS}><Id>{IDS[b]}</Id><NumeroBoletin>{b}</NumeroBoletin>{DETALLES[b]}</ProyectoLey>"
+    elif op == "retornarVotacionesXAnno":
+        body = VOTACIONES
     else:
         return camara_falsa(request)
     return httpx.Response(200, content=body.encode())
@@ -68,6 +80,7 @@ def _sincronizar(**kw):
 def test_materias(api):
     r = _sincronizar(limite=2)  # de a poco: quedan pendientes para la próxima corrida
     assert r["proyectos"] == 3 and r["detalles"] == 2 and r["pendientes"] == 1 and r["materias"] == 3
+    assert r["votados"] == 1  # el de 2019 que se votó este año
     r = _sincronizar()
     assert r["detalles"] == 1 and r["pendientes"] == 0
     db = SessionLocal()
@@ -77,7 +90,20 @@ def test_materias(api):
     db.close()
 
     cats = api.get("/materias/categorias").json()
-    assert cats == [{"id": 10, "nombre": "EDUCACION", "proyectos": 2}, {"id": 20, "nombre": "SALUD", "proyectos": 1}]
+    assert cats == [{"id": 10, "nombre": "EDUCACION", "proyectos": 2}, {"id": 30, "nombre": "PESCA", "proyectos": 1},
+                    {"id": 20, "nombre": "SALUD", "proyectos": 1}]
+
+    # materias de cada votación (por el boletín); sin materia o sin boletín no aparecen
+    anterior = camara._client
+    camara._client = httpx.AsyncClient(transport=httpx.MockTransport(_red))
+    camara.limpiar_cache()
+    try:
+        mv = api.get("/votaciones/materias").json()
+    finally:
+        camara._client = anterior
+        camara.limpiar_cache()
+    assert mv == {"70001": [{"id": 10, "nombre": "EDUCACION"}, {"id": 20, "nombre": "SALUD"}],
+                  "70002": [{"id": 30, "nombre": "PESCA"}]}
     l = api.get("/materias/10/proyectos").json()
     assert [p["NumeroBoletin"] for p in l] == ["18002-11", "18001-04"]
     assert l[0]["Materias"] == [{"Id": 10, "Nombre": "EDUCACION"}, {"Id": 20, "Nombre": "SALUD"}]
@@ -103,7 +129,7 @@ def test_materias(api):
     assert api.put("/user/me/materias", headers=h, json={"materia_ids": [20, 999]}).status_code == 422
     r = api.put("/user/me/materias", headers=h, json={"materia_ids": [20, 30]})
     assert [x["nombre"] for x in r.json()] == ["PESCA", "SALUD"]
-    assert [p["Id"] for p in api.get("/user/me/materias/proyectos", headers=h).json()] == [502]
+    assert [p["Id"] for p in api.get("/user/me/materias/proyectos", headers=h).json()] == [502, 400]
     assert api.put("/user/me/materias", headers=h, json={"materia_ids": [10]}).json()[0]["id"] == 10
     # al eliminar la cuenta se borran sus materias
     assert api.request("DELETE", "/user/me", headers=h, json={"password": "clave-segura-1"}).status_code == 204
