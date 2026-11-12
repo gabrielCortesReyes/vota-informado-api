@@ -1,12 +1,14 @@
 """WSLegislativo: proyectos de ley, votaciones, legislaturas, períodos, materias y trámites."""
 from datetime import date
 
-from fastapi import APIRouter, Depends, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
 from app.camara.client import consultar, consultar_o_404
 from app.database import get_db
 from app.distritos import votos_del_distrito
+from app.models import ProyectoResumen
+from app.schemas import ResumenProyectoOut
 
 WS = "WSLegislativo"
 router = APIRouter(tags=["Legislativo"])
@@ -49,6 +51,15 @@ async def votaciones_proyecto(boletin: str = Path(..., examples=["11144-07"])):
 @router.get("/proyectos/{boletin}/documento", summary="Documento de ingreso del proyecto de ley")
 async def documento_proyecto(boletin: str = Path(..., examples=["11144-07"])):
     return await consultar_o_404(WS, "retornarDocumentoIngresoProyectoLey", "Documento no encontrado", prmNumeroBoletin=boletin)
+
+
+@router.get("/proyectos/{boletin}/resumen", response_model=ResumenProyectoOut,
+            summary="Explicación en lenguaje simple del proyecto (404 si todavía no tiene)")
+def resumen_proyecto(boletin: str = Path(..., examples=["18702-05"]), db: Session = Depends(get_db)):
+    r = db.get(ProyectoResumen, boletin.strip())
+    if not r:
+        raise HTTPException(404, "Este proyecto todavía no tiene resumen")
+    return r
 
 
 # --- Votaciones -------------------------------------------------------------

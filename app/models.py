@@ -220,6 +220,21 @@ class ProyectoAutor(Base):
     orden = Column(Integer, nullable=True)
 
 
+class ProyectoResumen(Base):
+    """Explicación en lenguaje simple de un proyecto, escrita a mano por un administrador (sin IA)."""
+    __tablename__ = "proyecto_resumenes"
+
+    boletin = Column(String(20), primary_key=True)
+    en_una_frase = Column(Text, nullable=False)
+    que_cambia = Column(JSON, nullable=False)             # lista de textos
+    a_quien_afecta = Column(JSON, nullable=False)         # lista de textos
+    cifras = Column(JSON, nullable=False)                 # [{"etiqueta", "valor"}]
+    fuente_url = Column(Text, nullable=True)
+    fuente_nombre = Column(String(200), nullable=True)
+    actualizado_at = Column(TIMESTAMP, server_default=func.current_timestamp(),
+                            onupdate=func.current_timestamp(), nullable=False)
+
+
 class UserMateria(Base):
     """Materias que le interesan a un usuario."""
     __tablename__ = "user_materias"

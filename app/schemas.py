@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -340,3 +340,30 @@ class PatrimonioRankingItem(BaseModel):
     declaracion_id: int
     fecha: Optional[date] = None
     totales: PatrimonioTotales
+
+
+# --- Resumen simple de un proyecto ----------------------------------------------------
+
+Punto = Annotated[str, Field(min_length=3, max_length=300)]
+
+
+class CifraClave(BaseModel):
+    etiqueta: str = Field(..., min_length=1, max_length=80, examples=["Gasto total"])
+    valor: str = Field(..., min_length=1, max_length=80, examples=["$ 85 billones"])
+
+
+class ResumenProyectoIn(BaseModel):
+    en_una_frase: str = Field(..., min_length=10, max_length=300,
+                              examples=["Define cuánto dinero puede gastar el Estado en 2027 y en qué."])
+    que_cambia: list[Punto] = Field(..., min_length=1, max_length=6)
+    a_quien_afecta: list[Punto] = Field(default_factory=list, max_length=6)
+    cifras: list[CifraClave] = Field(default_factory=list, max_length=6)
+    fuente_url: Optional[str] = Field(None, max_length=500)
+    fuente_nombre: Optional[str] = Field(None, max_length=200)
+
+
+class ResumenProyectoOut(ResumenProyectoIn):
+    boletin: str
+    actualizado_at: datetime
+
+    model_config = {"from_attributes": True}

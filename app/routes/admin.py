@@ -2,20 +2,20 @@
 from datetime import date, datetime, timezone
 from typing import Literal, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query, Response
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import SessionLocal, get_db
-from app.models import Comment, CommentReport, Parliamentarian, Party, Survey
+from app.models import Comment, CommentReport, Parliamentarian, Party, ProyectoResumen, Survey
 from app.routes.encuestas import crear_encuesta
 from app.schemas import CommentReportOut, PartyLogoIn, PartyOut, ReportDecisionIn, SurveyIn, SurveyOut
 from app.security import admin_user
 from app.asistencia import sincronizar_asistencia
 from app.patrimonio import cargar_declaracion, sincronizar_patrimonio
 from app.routes.patrimonio import patrimonio_out
-from app.schemas import PatrimonioOut
+from app.schemas import PatrimonioOut, ResumenProyectoIn, ResumenProyectoOut
 from app.sync import sincronizar_todo
 from app.proyectos import sincronizar_proyectos
 
@@ -191,3 +191,32 @@ def logo_partido(party_id: int, body: PartyLogoIn, db: Session = Depends(get_db)
     db.commit()
     db.refresh(p)
     return p
+
+
+# --- Resúmenes en lenguaje simple (escritos a mano) ------------------------------------
+
+BoletinPath = Path(..., pattern=r"^\d{1,6}-\d{2}$", examples=["18702-05"])
+
+
+@router.put("/proyectos/{boletin}/resumen", response_model=ResumenProyectoOut,
+            summary="Crea o reemplaza la explicación en lenguaje simple de un proyecto")
+def guardar_resumen(datos: ResumenProyectoIn, boletin: str = BoletinPath, db: Session = Depends(get_db)):
+    valores = datos.model_dump()
+    r = db.get(ProyectoResumen, boletin)
+    if r is None:
+        r = ProyectoResumen(boletin=boletin)
+        db.add(r)
+    for campo, valor in valores.items():
+        setattr(r, campo, valor)
+    r.actualizado_at = datetime.now()
+    db.commit()
+    db.refresh(r)
+    return r
+
+
+@router.delete("/proyectos/{boletin}/resumen", status_code=204, summary="Quita el resumen de un proyecto")
+def borrar_resumen(boletin: str = BoletinPath, db: Session = Depends(get_db)):
+    if not db.query(ProyectoResumen).filter_by(boletin=boletin).delete():
+        raise HTTPException(404, "Este proyecto no tiene resumen")
+    db.commit()
+    return Response(status_code=204)
