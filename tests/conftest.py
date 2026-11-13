@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.camara import client as camara
-from app import patrimonio, sync
+from app import nombres, patrimonio, sync
 from app.camara.xml import xml_to_json
 from app.database import Base, SessionLocal, engine
 from app.main import app
@@ -136,6 +136,9 @@ def api():
         camara._client = httpx.AsyncClient(transport=httpx.MockTransport(camara_falsa))
         # 1011 trae un distrito antiguo (51): se toma el de app/data, aquí fijado para los Id de prueba
         sync.diputados_distrito = lambda: {"1011": 8}
+        # los Id de prueba (1009...) existen en app/data/diputados_nombres.json: aquí solo 1174
+        nombres.diputados_nombres = lambda: {"1174": {"nombre": "Marco Antonio", "apellido_paterno": "Sulantay",
+                                                      "apellido_materno": "Olivares"}}
         sync._cliente = lambda **kw: httpx.AsyncClient(transport=httpx.MockTransport(red_falsa), **kw)
         patrimonio._cliente = lambda: httpx.AsyncClient(transport=httpx.MockTransport(red_falsa))
         camara.limpiar_cache()

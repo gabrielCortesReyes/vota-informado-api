@@ -12,6 +12,7 @@ from fastapi import HTTPException
 
 from app.camara.xml import xml_to_json
 from app.config import CACHE_TTL, CAMARA_BASE_URL, CAMARA_TIMEOUT
+from app.nombres import corregir_nombres
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,9 @@ async def consultar(servicio: str, operacion: str, **params: Any) -> Any:
     except Exception as e:
         logger.error(f"XML inválido de la Cámara ({key}): {e}")
         raise HTTPException(status_code=502, detail="Respuesta inválida de la API de la Cámara")
+
+    # opendata entrega nombres de exdiputados para el período 2026-2030 (ver app/nombres.py)
+    data = corregir_nombres(data, raiz_es_diputado=operacion == "retornarDiputado")
 
     _cache[key] = (time.monotonic(), data)
     return data

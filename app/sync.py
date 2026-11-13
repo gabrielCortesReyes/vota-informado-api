@@ -22,6 +22,7 @@ from app.asistencia import sincronizar_asistencia
 from app.patrimonio import sincronizar_patrimonio
 from app.proyectos import sincronizar_proyectos
 from app.camara.client import consultar
+from app.nombres import corregir_diputado
 from app.config import COMMONS_API, SENADO_SENADORES_URL, WIKIDATA_API, WIKIPEDIA_API, WIKIPEDIA_USER_AGENT
 from app.distritos import DISTRITOS_VIGENTES, diputados_distrito
 from app.models import Parliamentarian, Party
@@ -111,6 +112,8 @@ async def sincronizar_diputados(db: Session) -> int:
         d = (item or {}).get("Diputado") or {}
         if not d.get("Id"):
             continue
+        # desde 2026-11-13 opendata devuelve nombres de exdiputados para los Id del período 2026-2030
+        corregir_diputado(d)
         mil = _militancia_actual(d.get("Militancias"))
         distrito = _distrito_diputado(item, int(d["Id"]))
         partido = (mil or {}).get("Partido") or {}

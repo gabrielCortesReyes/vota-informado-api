@@ -1,0 +1,777 @@
+{
+ "803": {
+  "nombre": "René",
+  "apellido_paterno": "Alinco",
+  "apellido_materno": "Bustos"
+ },
+ "815": {
+  "nombre": "Sergio",
+  "apellido_paterno": "Bobadilla",
+  "apellido_materno": "Muñoz"
+ },
+ "843": {
+  "nombre": "René Manuel",
+  "apellido_paterno": "García",
+  "apellido_materno": "García"
+ },
+ "872": {
+  "nombre": "Jaime",
+  "apellido_paterno": "Mulet",
+  "apellido_materno": "Martínez"
+ },
+ "915": {
+  "nombre": "Germán",
+  "apellido_paterno": "Verdugo",
+  "apellido_materno": "Soto"
+ },
+ "986": {
+  "nombre": "Marcela",
+  "apellido_paterno": "Hernando",
+  "apellido_materno": "Pérez"
+ },
+ "1009": {
+  "nombre": "Jorge",
+  "apellido_paterno": "Alessandri",
+  "apellido_materno": "Vergara"
+ },
+ "1012": {
+  "nombre": "Boris",
+  "apellido_paterno": "Barrera",
+  "apellido_materno": "Moreno"
+ },
+ "1013": {
+  "nombre": "Alejandro",
+  "apellido_paterno": "Bernales",
+  "apellido_materno": "Maldonado"
+ },
+ "1015": {
+  "nombre": "Jorge",
+  "apellido_paterno": "Brito",
+  "apellido_materno": "Hasbún"
+ },
+ "1017": {
+  "nombre": "Álvaro",
+  "apellido_paterno": "Carter",
+  "apellido_materno": "Fernández"
+ },
+ "1021": {
+  "nombre": "Andrés",
+  "apellido_paterno": "Celis",
+  "apellido_materno": "Montt"
+ },
+ "1025": {
+  "nombre": "Catalina",
+  "apellido_paterno": "Del Real",
+  "apellido_materno": "Mihovilovic"
+ },
+ "1028": {
+  "nombre": "Eduardo",
+  "apellido_paterno": "Durán",
+  "apellido_materno": "Salinas"
+ },
+ "1038": {
+  "nombre": "Marcos",
+  "apellido_paterno": "Ilabaca",
+  "apellido_materno": "Cerda"
+ },
+ "1039": {
+  "nombre": "Pamela",
+  "apellido_paterno": "Jiles",
+  "apellido_materno": "Moreno"
+ },
+ "1044": {
+  "nombre": "Raúl",
+  "apellido_paterno": "Leiva",
+  "apellido_materno": "Carvajal"
+ },
+ "1054": {
+  "nombre": "Francesca",
+  "apellido_paterno": "Muñoz",
+  "apellido_materno": "González"
+ },
+ "1056": {
+  "nombre": "Emilia",
+  "apellido_paterno": "Nuyado",
+  "apellido_materno": "Ancapichun"
+ },
+ "1059": {
+  "nombre": "Ximena",
+  "apellido_paterno": "Ossandón",
+  "apellido_materno": "Irarrázabal"
+ },
+ "1060": {
+  "nombre": "Luis",
+  "apellido_paterno": "Pardo",
+  "apellido_materno": "Sáinz"
+ },
+ "1061": {
+  "nombre": "Andrea",
+  "apellido_paterno": "Parra",
+  "apellido_materno": "Sauterel"
+ },
+ "1062": {
+  "nombre": "Joanna",
+  "apellido_paterno": "Pérez",
+  "apellido_materno": "Olea"
+ },
+ "1065": {
+  "nombre": "Guillermo",
+  "apellido_paterno": "Ramírez",
+  "apellido_materno": "Diez"
+ },
+ "1073": {
+  "nombre": "Juan",
+  "apellido_paterno": "Santana",
+  "apellido_materno": "Castillo"
+ },
+ "1074": {
+  "nombre": "Marisela",
+  "apellido_paterno": "Santibáñez",
+  "apellido_materno": "Novoa"
+ },
+ "1075": {
+  "nombre": "Diego",
+  "apellido_paterno": "Schalper",
+  "apellido_materno": "Sepúlveda"
+ },
+ "1077": {
+  "nombre": "Raúl",
+  "apellido_paterno": "Soto",
+  "apellido_materno": "Mardones"
+ },
+ "1082": {
+  "nombre": "Cristóbal",
+  "apellido_paterno": "Urruticoechea",
+  "apellido_materno": "Ríos"
+ },
+ "1086": {
+  "nombre": "Gonzalo",
+  "apellido_paterno": "Winter",
+  "apellido_materno": "Etcheberry"
+ },
+ "1087": {
+  "nombre": "Gael",
+  "apellido_paterno": "Yeomans",
+  "apellido_materno": "Araya"
+ },
+ "1099": {
+  "nombre": "Jaime",
+  "apellido_paterno": "Araya",
+  "apellido_materno": "Guerrero"
+ },
+ "1100": {
+  "nombre": "Cristián",
+  "apellido_paterno": "Araya",
+  "apellido_materno": "Lerdo de Tejada"
+ },
+ "1102": {
+  "nombre": "Roberto",
+  "apellido_paterno": "Arroyo",
+  "apellido_materno": "Muñoz"
+ },
+ "1104": {
+  "nombre": "Chiara",
+  "apellido_paterno": "Barchiesi",
+  "apellido_materno": "Chávez"
+ },
+ "1105": {
+  "nombre": "Héctor",
+  "apellido_paterno": "Barría",
+  "apellido_materno": "Angulo"
+ },
+ "1107": {
+  "nombre": "María Francisca",
+  "apellido_paterno": "Bello",
+  "apellido_materno": "Campos"
+ },
+ "1108": {
+  "nombre": "Juan Carlos",
+  "apellido_paterno": "Beltrán",
+  "apellido_materno": "Silva"
+ },
+ "1110": {
+  "nombre": "Carlos",
+  "apellido_paterno": "Bianchi",
+  "apellido_materno": "Chelech"
+ },
+ "1114": {
+  "nombre": "Félix",
+  "apellido_paterno": "Bugueño",
+  "apellido_materno": "Sotelo"
+ },
+ "1116": {
+  "nombre": "Felipe",
+  "apellido_paterno": "Camaño",
+  "apellido_materno": "Cárdenas"
+ },
+ "1117": {
+  "nombre": "Nathalie",
+  "apellido_paterno": "Castillo",
+  "apellido_materno": "Rojas"
+ },
+ "1119": {
+  "nombre": "Sara",
+  "apellido_paterno": "Concha",
+  "apellido_materno": "Smith"
+ },
+ "1122": {
+  "nombre": "Luis Alberto",
+  "apellido_paterno": "Cuello",
+  "apellido_materno": "Peña y Lillo"
+ },
+ "1127": {
+  "nombre": "Lorena",
+  "apellido_paterno": "Fries",
+  "apellido_materno": "Monleón"
+ },
+ "1128": {
+  "nombre": "Ana María",
+  "apellido_paterno": "Gazmuri",
+  "apellido_materno": "Vieira"
+ },
+ "1131": {
+  "nombre": "Mauro",
+  "apellido_paterno": "González",
+  "apellido_materno": "Villarroel"
+ },
+ "1132": {
+  "nombre": "Jorge",
+  "apellido_paterno": "Guzmán",
+  "apellido_materno": "Zepeda"
+ },
+ "1133": {
+  "nombre": "Juan",
+  "apellido_paterno": "Irarrázaval",
+  "apellido_materno": "Rossel"
+ },
+ "1140": {
+  "nombre": "Daniel",
+  "apellido_paterno": "Lilayu",
+  "apellido_materno": "Vivanco"
+ },
+ "1141": {
+  "nombre": "Luis",
+  "apellido_paterno": "Malla",
+  "apellido_materno": "Valenzuela"
+ },
+ "1142": {
+  "nombre": "Daniel",
+  "apellido_paterno": "Manouchehri",
+  "apellido_materno": "Lobos"
+ },
+ "1143": {
+  "nombre": "Cristóbal",
+  "apellido_paterno": "Martínez",
+  "apellido_materno": "Ramírez"
+ },
+ "1146": {
+  "nombre": "José Carlos",
+  "apellido_paterno": "Meza",
+  "apellido_materno": "Pereira"
+ },
+ "1148": {
+  "nombre": "Javiera",
+  "apellido_paterno": "Morales",
+  "apellido_materno": "Alvarado"
+ },
+ "1150": {
+  "nombre": "Benjamín",
+  "apellido_paterno": "Moreno",
+  "apellido_materno": "Bascur"
+ },
+ "1152": {
+  "nombre": "Gloria",
+  "apellido_paterno": "Naveillan",
+  "apellido_materno": "Arriagada"
+ },
+ "1153": {
+  "nombre": "Coca Ericka",
+  "apellido_paterno": "Ñanco",
+  "apellido_materno": "Vásquez"
+ },
+ "1157": {
+  "nombre": "Marlene",
+  "apellido_paterno": "Pérez",
+  "apellido_materno": "Cartes"
+ },
+ "1159": {
+  "nombre": "Lorena",
+  "apellido_paterno": "Pizarro",
+  "apellido_materno": "Sierra"
+ },
+ "1165": {
+  "nombre": "Agustín",
+  "apellido_paterno": "Romero",
+  "apellido_materno": "Leiva"
+ },
+ "1166": {
+  "nombre": "Natalia",
+  "apellido_paterno": "Romero",
+  "apellido_materno": "Talguia"
+ },
+ "1170": {
+  "nombre": "Luis",
+  "apellido_paterno": "Sánchez",
+  "apellido_materno": "Ossa"
+ },
+ "1171": {
+  "nombre": "Emilia",
+  "apellido_paterno": "Schneider",
+  "apellido_materno": "Videla"
+ },
+ "1172": {
+  "nombre": "Stephan",
+  "apellido_paterno": "Schubert",
+  "apellido_materno": "Rubio"
+ },
+ "1173": {
+  "nombre": "Daniela",
+  "apellido_paterno": "Serrano",
+  "apellido_materno": "Salazar"
+ },
+ "1174": {
+  "nombre": "Marco Antonio",
+  "apellido_paterno": "Sulantay",
+  "apellido_materno": "Olivares"
+ },
+ "1175": {
+  "nombre": "Cristián",
+  "apellido_paterno": "Tapia",
+  "apellido_materno": "Ramos"
+ },
+ "1176": {
+  "nombre": "Hotuiti",
+  "apellido_paterno": "Teao",
+  "apellido_materno": "Drago"
+ },
+ "1177": {
+  "nombre": "Carolina",
+  "apellido_paterno": "Tello",
+  "apellido_materno": "Rojas"
+ },
+ "1178": {
+  "nombre": "Héctor",
+  "apellido_paterno": "Ulloa",
+  "apellido_materno": "Aguilera"
+ },
+ "1180": {
+  "nombre": "Consuelo",
+  "apellido_paterno": "Veloso",
+  "apellido_materno": "Ávila"
+ },
+ "1181": {
+  "nombre": "Nelson",
+  "apellido_paterno": "Venegas",
+  "apellido_materno": "Salazar"
+ },
+ "1182": {
+  "nombre": "Sebastián",
+  "apellido_paterno": "Videla",
+  "apellido_materno": "Castillo"
+ },
+ "1183": {
+  "nombre": "Flor",
+  "apellido_paterno": "Weisse",
+  "apellido_materno": "Novoa"
+ },
+ "1184": {
+  "nombre": "Roberto",
+  "apellido_paterno": "Celedón",
+  "apellido_materno": "Fernández"
+ },
+ "1186": {
+  "nombre": "Ignacio",
+  "apellido_paterno": "Achurra",
+  "apellido_materno": "Díaz"
+ },
+ "1187": {
+  "nombre": "Carlo",
+  "apellido_paterno": "Arqueros",
+  "apellido_materno": "Pizarro"
+ },
+ "1188": {
+  "nombre": "Marcos",
+  "apellido_paterno": "Barraza",
+  "apellido_materno": "Gómez"
+ },
+ "1189": {
+  "nombre": "Jaime",
+  "apellido_paterno": "Bassa",
+  "apellido_materno": "Mercado"
+ },
+ "1190": {
+  "nombre": "Enrique",
+  "apellido_paterno": "Bassaletti",
+  "apellido_materno": "Riess"
+ },
+ "1191": {
+  "nombre": "Valentina",
+  "apellido_paterno": "Becerra",
+  "apellido_materno": "Peña"
+ },
+ "1192": {
+  "nombre": "Lilian",
+  "apellido_paterno": "Betancurt",
+  "apellido_materno": "Delgado"
+ },
+ "1193": {
+  "nombre": "Patricio",
+  "apellido_paterno": "Briones",
+  "apellido_materno": "Moller"
+ },
+ "1194": {
+  "nombre": "Daniel",
+  "apellido_paterno": "Bustos",
+  "apellido_materno": "Leal"
+ },
+ "1195": {
+  "nombre": "Carlos",
+  "apellido_paterno": "Carvajal",
+  "apellido_materno": "Gallardo"
+ },
+ "1196": {
+  "nombre": "Priscilla",
+  "apellido_paterno": "Castillo",
+  "apellido_materno": "Gerli"
+ },
+ "1197": {
+  "nombre": "Carlos",
+  "apellido_paterno": "Chandía",
+  "apellido_materno": "Alarcón"
+ },
+ "1198": {
+  "nombre": "Paz",
+  "apellido_paterno": "Charpentier",
+  "apellido_materno": "Rajcevich"
+ },
+ "1199": {
+  "nombre": "Jaime",
+  "apellido_paterno": "Coloma",
+  "apellido_materno": "Álamos"
+ },
+ "1200": {
+  "nombre": "Cristian",
+  "apellido_paterno": "Contreras",
+  "apellido_materno": "Radovic"
+ },
+ "1201": {
+  "nombre": "Flor",
+  "apellido_paterno": "Contreras",
+  "apellido_materno": "Vivallo"
+ },
+ "1202": {
+  "nombre": "Eduardo",
+  "apellido_paterno": "Cretton",
+  "apellido_materno": "Rebolledo"
+ },
+ "1203": {
+  "nombre": "Sebastián",
+  "apellido_paterno": "Cristoffanini",
+  "apellido_materno": "Jaraquemada"
+ },
+ "1204": {
+  "nombre": "Francisco",
+  "apellido_paterno": "Crisóstomo",
+  "apellido_materno": "Llanos"
+ },
+ "1205": {
+  "nombre": "Carlos",
+  "apellido_paterno": "Cuadrado",
+  "apellido_materno": "Prats"
+ },
+ "1206": {
+  "nombre": "Carolina",
+  "apellido_paterno": "Cucumides",
+  "apellido_materno": "Calderón"
+ },
+ "1207": {
+  "nombre": "Valentina",
+  "apellido_paterno": "Cáceres",
+  "apellido_materno": "Monsálvez"
+ },
+ "1208": {
+  "nombre": "Jorge",
+  "apellido_paterno": "Díaz",
+  "apellido_materno": "Ibarra"
+ },
+ "1209": {
+  "nombre": "Matías",
+  "apellido_paterno": "Fernández",
+  "apellido_materno": "Hartwig"
+ },
+ "1210": {
+  "nombre": "Gustavo",
+  "apellido_paterno": "Gatica",
+  "apellido_materno": "Villarroel"
+ },
+ "1211": {
+  "nombre": "Sofía",
+  "apellido_paterno": "González",
+  "apellido_materno": "Cortés"
+ },
+ "1212": {
+  "nombre": "Erich",
+  "apellido_paterno": "Grohs",
+  "apellido_materno": "Marín"
+ },
+ "1213": {
+  "nombre": "Irací",
+  "apellido_paterno": "Hassler",
+  "apellido_materno": "Jacob"
+ },
+ "1214": {
+  "nombre": "Constanza",
+  "apellido_paterno": "Hube",
+  "apellido_materno": "Portus"
+ },
+ "1215": {
+  "nombre": "Álvaro",
+  "apellido_paterno": "Jofré",
+  "apellido_materno": "Cáceres"
+ },
+ "1216": {
+  "nombre": "Stephanie",
+  "apellido_paterno": "Jéldrez",
+  "apellido_materno": "Ortiz"
+ },
+ "1217": {
+  "nombre": "Pier",
+  "apellido_paterno": "Karlezi",
+  "apellido_materno": "Hazleby"
+ },
+ "1218": {
+  "nombre": "José Antonio",
+  "apellido_paterno": "Kast",
+  "apellido_materno": "Adriasola"
+ },
+ "1219": {
+  "nombre": "Tomás",
+  "apellido_paterno": "Kast",
+  "apellido_materno": "Sommerhoff"
+ },
+ "1220": {
+  "nombre": "Leandro",
+  "apellido_paterno": "Kunstmann",
+  "apellido_materno": "Collado"
+ },
+ "1221": {
+  "nombre": "Benjamín",
+  "apellido_paterno": "Lorca",
+  "apellido_materno": "Inzunza"
+ },
+ "1222": {
+  "nombre": "Andrea",
+  "apellido_paterno": "Macías",
+  "apellido_materno": "Palma"
+ },
+ "1223": {
+  "nombre": "Hans",
+  "apellido_paterno": "Marowski",
+  "apellido_materno": "Cuevas"
+ },
+ "1224": {
+  "nombre": "Cristian",
+  "apellido_paterno": "Mella",
+  "apellido_materno": "Andaur"
+ },
+ "1225": {
+  "nombre": "Cristian",
+  "apellido_paterno": "Menchaca",
+  "apellido_materno": "Pinochet"
+ },
+ "1226": {
+  "nombre": "José",
+  "apellido_paterno": "Montalva",
+  "apellido_materno": "Feuerhake"
+ },
+ "1227": {
+  "nombre": "Claudia",
+  "apellido_paterno": "Mora",
+  "apellido_materno": "Vega"
+ },
+ "1228": {
+  "nombre": "Paulina",
+  "apellido_paterno": "Muñoz",
+  "apellido_materno": "Minte"
+ },
+ "1229": {
+  "nombre": "Javier",
+  "apellido_paterno": "Muñoz",
+  "apellido_materno": "Riquelme"
+ },
+ "1230": {
+  "nombre": "Alex",
+  "apellido_paterno": "Nahuelquin",
+  "apellido_materno": "Nahuelquin"
+ },
+ "1231": {
+  "nombre": "Ximena",
+  "apellido_paterno": "Naranjo",
+  "apellido_materno": "Pinto"
+ },
+ "1232": {
+  "nombre": "Cristian",
+  "apellido_paterno": "Neira",
+  "apellido_materno": "Martínez"
+ },
+ "1233": {
+  "nombre": "Ricardo",
+  "apellido_paterno": "Neumann",
+  "apellido_materno": "Bertín"
+ },
+ "1234": {
+  "nombre": "Mario",
+  "apellido_paterno": "Olavarría",
+  "apellido_materno": "Rodríguez"
+ },
+ "1235": {
+  "nombre": "Javier",
+  "apellido_paterno": "Olivares",
+  "apellido_materno": "Avendaño"
+ },
+ "1236": {
+  "nombre": "Paula",
+  "apellido_paterno": "Olmos",
+  "apellido_materno": "Contreras"
+ },
+ "1237": {
+  "nombre": "Francisco",
+  "apellido_paterno": "Orrego",
+  "apellido_materno": "Gutiérrez"
+ },
+ "1238": {
+  "nombre": "Álvaro",
+  "apellido_paterno": "Ortiz",
+  "apellido_materno": "Vera"
+ },
+ "1239": {
+  "nombre": "Fabián",
+  "apellido_paterno": "Ossandón",
+  "apellido_materno": "Briceño"
+ },
+ "1240": {
+  "nombre": "Zandra",
+  "apellido_paterno": "Parisi",
+  "apellido_materno": "Fernández"
+ },
+ "1241": {
+  "nombre": "Patricio",
+  "apellido_paterno": "Pinilla",
+  "apellido_materno": "Valencia"
+ },
+ "1242": {
+  "nombre": "Rodrigo",
+  "apellido_paterno": "Ramírez",
+  "apellido_materno": "Parra"
+ },
+ "1243": {
+  "nombre": "Tamara",
+  "apellido_paterno": "Ramírez",
+  "apellido_materno": "Ramírez"
+ },
+ "1244": {
+  "nombre": "Claudia",
+  "apellido_paterno": "Reyes",
+  "apellido_materno": "Larenas"
+ },
+ "1245": {
+  "nombre": "Alejandro",
+  "apellido_paterno": "Riquelme",
+  "apellido_materno": "Ducci"
+ },
+ "1246": {
+  "nombre": "José Antonio",
+  "apellido_paterno": "Rivas",
+  "apellido_materno": "Villalobos"
+ },
+ "1247": {
+  "nombre": "Javiera",
+  "apellido_paterno": "Rodríguez",
+  "apellido_materno": "Pascual"
+ },
+ "1248": {
+  "nombre": "Felipe",
+  "apellido_paterno": "Ross",
+  "apellido_materno": "Correa"
+ },
+ "1249": {
+  "nombre": "Omar",
+  "apellido_paterno": "Sabat",
+  "apellido_materno": "Guzmán"
+ },
+ "1250": {
+  "nombre": "Bernardo",
+  "apellido_paterno": "Salinas",
+  "apellido_materno": "Maya"
+ },
+ "1251": {
+  "nombre": "Macarena",
+  "apellido_paterno": "Santelices",
+  "apellido_materno": "Cañas"
+ },
+ "1252": {
+  "nombre": "Constanza",
+  "apellido_paterno": "Schonhaut",
+  "apellido_materno": "Soto"
+ },
+ "1253": {
+  "nombre": "Fernando",
+  "apellido_paterno": "Ugarte",
+  "apellido_materno": "Tejeda"
+ },
+ "1254": {
+  "nombre": "Ignacio",
+  "apellido_paterno": "Urcullú",
+  "apellido_materno": "Clèment-Lund"
+ },
+ "1255": {
+  "nombre": "Eileen",
+  "apellido_paterno": "Urqueta",
+  "apellido_materno": "Rojas"
+ },
+ "1256": {
+  "nombre": "Tatiana",
+  "apellido_paterno": "Urrutia",
+  "apellido_materno": "Herrera"
+ },
+ "1257": {
+  "nombre": "Alejandra",
+  "apellido_paterno": "Valdebenito",
+  "apellido_materno": "Torres"
+ },
+ "1258": {
+  "nombre": "Guillermo",
+  "apellido_paterno": "Valdés",
+  "apellido_materno": "Carmona"
+ },
+ "1259": {
+  "nombre": "Juan Marcelo",
+  "apellido_paterno": "Valenzuela",
+  "apellido_materno": "Henríquez"
+ },
+ "1260": {
+  "nombre": "César",
+  "apellido_paterno": "Valenzuela",
+  "apellido_materno": "Maass"
+ },
+ "1261": {
+  "nombre": "Daniel",
+  "apellido_paterno": "Valenzuela",
+  "apellido_materno": "Salazar"
+ },
+ "1262": {
+  "nombre": "Diego",
+  "apellido_paterno": "Vergara",
+  "apellido_materno": "Rodríguez"
+ },
+ "1263": {
+  "nombre": "Sebastián",
+  "apellido_paterno": "Zamora",
+  "apellido_materno": "Soto"
+ },
+ "1264": {
+  "nombre": "Fernando",
+  "apellido_paterno": "Zamorano",
+  "apellido_materno": "Peralta"
+ }
+}
