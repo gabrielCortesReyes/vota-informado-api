@@ -358,7 +358,7 @@ class Comision(Base):
     __tablename__ = "comisiones"
 
     id = Column(Integer, primary_key=True, autoincrement=False)
-    nombre = Column(String(300), nullable=False)
+    nombre = Column(Text, nullable=False)              # las investigadoras superan los 400 caracteres
     alias = Column(String(150), nullable=True)
     tipo = Column(String(80), nullable=True)          # Permanente | Especial Investigadora | ...
     numero = Column(Integer, nullable=True)

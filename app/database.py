@@ -23,6 +23,12 @@ def init_db() -> None:
 
     Base.metadata.create_all(bind=engine)
     _agregar_columnas_nuevas()
+    # comisiones.nombre pasó de VARCHAR(300) a TEXT: hay nombres de comisiones investigadoras de casi 500 caracteres
+    if engine.dialect.name == "postgresql":
+        columnas = {c["name"]: c for c in inspect(engine).get_columns("comisiones")}
+        if getattr(columnas.get("nombre", {}).get("type"), "length", None):
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE comisiones ALTER COLUMN nombre TYPE TEXT"))
     # parties.external_id pasó de entero a texto: la Cámara usa siglas como "PC" o "IND"
     if engine.dialect.name == "postgresql":
         columnas = {c["name"]: c for c in inspect(engine).get_columns("parties")}
