@@ -23,6 +23,8 @@ from app.comisiones import sincronizar_comisiones
 from app.patrimonio import sincronizar_patrimonio
 from app.proyectos import sincronizar_proyectos
 from app.camara.client import consultar
+from app import nombres
+from app.identificar import norm
 from app.nombres import corregir_diputado
 from app.config import COMMONS_API, SENADO_SENADORES_URL, WIKIDATA_API, WIKIPEDIA_API, WIKIPEDIA_USER_AGENT
 from app.distritos import DISTRITOS_VIGENTES, diputados_distrito
@@ -106,32 +108,56 @@ def _distrito_diputado(item: dict, diputado_id: int) -> int | None:
     return diputados_distrito().get(str(diputado_id))
 
 
+def _ids_por_apellidos() -> dict[tuple[str, str], int]:
+    """{(apellido paterno, materno): Id de la Cámara usado en las votaciones} (app/data/diputados_nombres.json)."""
+    return {(norm(v.get("apellido_paterno")), norm(v.get("apellido_materno"))): int(k)
+            for k, v in nombres.diputados_nombres().items()}
+
+
+def _id_de_votaciones(d: dict, indice: dict[tuple[str, str], int]) -> int:
+    """Desde el 2026-11-16 retornarDiputadosPeriodoActual usa otros Id (1487...) que las votaciones, la asistencia
+    y los autores (803...), y sin militancias ni distrito. Se traduce al Id de las votaciones por los apellidos."""
+    return indice.get((norm(d.get("ApellidoPaterno")), norm(d.get("ApellidoMaterno"))), int(d["Id"]))
+
+
 async def sincronizar_diputados(db: Session) -> int:
     periodo = await consultar("WSDiputado", "retornarDiputadosPeriodoActual") or []
-    vistos = set()
+    indice = _ids_por_apellidos()
+    antes = db.query(Parliamentarian).filter(Parliamentarian.chamber == "diputado",
+                                             Parliamentarian.current.is_(True)).count()
+    vistos, sin_traducir = set(), 0
     for item in periodo:
-        d = (item or {}).get("Diputado") or {}
+        d = dict((item or {}).get("Diputado") or {})
         if not d.get("Id"):
             continue
+        original = int(d["Id"])
+        d["Id"] = _id_de_votaciones(d, indice)
+        sin_traducir += d["Id"] == original and str(original) not in nombres.diputados_nombres()
         # desde 2026-11-13 opendata devuelve nombres de exdiputados para los Id del período 2026-2030
         corregir_diputado(d)
         mil = _militancia_actual(d.get("Militancias"))
         distrito = _distrito_diputado(item, int(d["Id"]))
         partido = (mil or {}).get("Partido") or {}
         sexo = d.get("Sexo")
-        _upsert(
-            db, "diputado", int(d["Id"]),
+        campos = dict(
             first_name=" ".join(x for x in (d.get("Nombre"), d.get("Nombre2")) if x) or "",
             last_name=d.get("ApellidoPaterno") or "",
             second_last_name=d.get("ApellidoMaterno"),
             gender=sexo.get("Nombre") if isinstance(sexo, dict) else sexo,
             birth_date=str(d["FechaNacimiento"])[:10] if d.get("FechaNacimiento") else None,
-            party=_party(db, partido.get("Nombre"), partido.get("Alias"), partido.get("Id")),
             district=str(distrito) if distrito else None,
         )
+        if mil:  # sin militancias en la respuesta se mantiene el partido que ya tenía
+            campos["party"] = _party(db, partido.get("Nombre"), partido.get("Alias"), partido.get("Id"))
+        _upsert(db, "diputado", int(d["Id"]), **campos)
         vistos.add(int(d["Id"]))
-    if vistos:  # si la Cámara responde vacío no se da de baja a nadie (como con los senadores)
+    if sin_traducir:
+        logger.warning(f"Diputados: {sin_traducir} no están en app/data/diputados_nombres.json (Id {original}...)")
+    # una respuesta a medias de la Cámara no da de baja a nadie
+    if vistos and len(vistos) >= 0.8 * antes:
         _marcar_no_vigentes(db, "diputado", vistos)
+    elif vistos:
+        logger.error(f"Diputados: la Cámara devolvió {len(vistos)} y había {antes} vigentes; no se da de baja a nadie")
     db.commit()
     return len(vistos)
 
