@@ -367,3 +367,138 @@ class ResumenProyectoOut(ResumenProyectoIn):
     actualizado_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# --- Comisiones ---------------------------------------------------------------------
+
+class ComisionOut(BaseModel):
+    id: int
+    nombre: str
+    alias: Optional[str] = None
+    tipo: Optional[str] = None
+    fecha_inicio: Optional[datetime] = None
+    fecha_termino: Optional[datetime] = None
+    correo: Optional[str] = None
+    telefono: Optional[str] = None
+    presidente: Optional[ParliamentarianOut] = None
+    integrantes: int = 0
+    sesiones_anno: int = Field(0, description="Sesiones en el año consultado")
+    ultima_sesion: Optional[datetime] = None
+    fuente_url: Optional[str] = None
+
+
+class ComisionIntegranteOut(BaseModel):
+    parlamentario: ParliamentarianOut
+    es_presidente: bool = False
+    desde: Optional[datetime] = None
+
+
+class ComisionSesionOut(BaseModel):
+    id: int
+    numero: Optional[int] = None
+    tipo: Optional[str] = None
+    estado: Optional[str] = None
+    fecha_inicio: Optional[datetime] = None
+    fecha_termino: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ComisionDetalle(ComisionOut):
+    miembros: list[ComisionIntegranteOut] = []
+    sesiones: list[ComisionSesionOut] = Field([], description="Las más recientes primero")
+    nota: str = "La Cámara no publica la asistencia ni los temas de las sesiones de comisión."
+
+
+class ComisionDeParlamentario(BaseModel):
+    id: int
+    nombre: str
+    alias: Optional[str] = None
+    tipo: Optional[str] = None
+    es_presidente: bool = False
+    desde: Optional[datetime] = None
+
+
+# --- Rankings de participación ------------------------------------------------------
+
+class RankingNotaItem(BaseModel):
+    posicion: int
+    parlamentario: ParliamentarianOut
+    promedio: float
+    cantidad: int
+
+
+class RankingComentariosItem(BaseModel):
+    posicion: int
+    parlamentario: ParliamentarianOut
+    personas: int = Field(description="Personas distintas que comentaron (criterio del ranking)")
+    comentarios: int
+
+
+class RankingNotaOut(BaseModel):
+    promedio_general: Optional[float] = None
+    items: list[RankingNotaItem]
+
+
+class RankingComentariosOut(BaseModel):
+    items: list[RankingComentariosItem]
+
+
+# --- Gastos (transparencia) -----------------------------------------------------------
+
+GastoTipo = Literal["operacionales", "pasajes_aereos"]
+
+
+class GastoIn(BaseModel):
+    diputado_id: Optional[int] = Field(None, description="Id de la Cámara (prmId en camara.cl)")
+    diputado: Optional[str] = Field(None, description="Nombre, si no viene el Id (p. ej. «Vergara, Diego»)")
+    anno: int = Field(ge=2000, le=2100)
+    mes: int = Field(ge=1, le=12)
+    tipo: GastoTipo = "operacionales"
+    categoria: str = Field(min_length=1, max_length=200)
+    monto: int = Field(ge=0)
+
+
+class GastosImportIn(BaseModel):
+    gastos: list[GastoIn]
+    fuente: Optional[str] = Field(None, max_length=300, description="De dónde salen (URL o N° de solicitud)")
+
+
+class GastosImportOut(BaseModel):
+    filas: int
+    meses: int = Field(description="Pares diputado/mes reemplazados")
+    sin_identificar: list[str] = []
+
+
+class GastoCategoria(BaseModel):
+    categoria: str
+    monto: int
+
+
+class GastoMes(BaseModel):
+    anno: int
+    mes: int
+    tipo: str
+    total: int
+    categorias: list[GastoCategoria]
+
+
+class GastosParlamentarioOut(BaseModel):
+    parlamentario_id: int
+    total: int
+    meses: list[GastoMes]
+    por_categoria: list[GastoCategoria]
+    desde: Optional[str] = None
+    hasta: Optional[str] = None
+    actualizado: Optional[datetime] = None
+    fuente_url: Optional[str] = None
+    nota: str = ("La Cámara publica los gastos operacionales con dos meses de desfase. "
+                 "Fuente: Transparencia Activa, camara.cl.")
+
+
+class GastoRankingItem(BaseModel):
+    posicion: int
+    parlamentario: ParliamentarianOut
+    total: int
+    meses: int
+    promedio_mensual: int

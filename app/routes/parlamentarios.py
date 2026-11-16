@@ -1,8 +1,8 @@
 """Padrón de diputados y senadores (guardado en la base), con comentarios y calificaciones."""
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
@@ -13,7 +13,9 @@ from app.distritos import diputados_del_distrito
 from app.models import Comment, Parliamentarian, Party, Rating, User, UserBlock
 from app.schemas import (AsistenciaResumen, CommentIn, CommentOut, ParliamentarianDetail, ParliamentarianOut, PartyWithCount,
                          RatingIn, RatingOut, RatingSummary)
-from app.security import current_user, decode, get_active_user
+from app.security import current_user, decode, get_active_user, limiter
+
+COMENTARIOS_POR_DIA = 20  # por cuenta: frena el spam y la manipulación del ranking de comentarios
 
 router = APIRouter(tags=["Parlamentarios"])
 optional_bearer = HTTPBearer(auto_error=False)
@@ -128,8 +130,13 @@ def ver_comentarios(parl_id: int, limit: int = Query(50, le=200), offset: int = 
 
 
 @router.post("/parlamentarios/{parl_id}/comentarios", response_model=CommentOut, status_code=201, tags=["Comentarios"])
-def comentar(parl_id: int, body: CommentIn, user: User = Depends(current_user), db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def comentar(parl_id: int, body: CommentIn, request: Request, user: User = Depends(current_user),
+             db: Session = Depends(get_db)):
     _get(db, parl_id)
+    hace_un_dia = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=1)
+    if db.query(Comment).filter(Comment.user_id == user.id, Comment.created_at >= hace_un_dia).count() >= COMENTARIOS_POR_DIA:
+        raise HTTPException(status_code=429, detail=f"Puedes publicar hasta {COMENTARIOS_POR_DIA} comentarios al día")
     c = Comment(user_id=user.id, parliamentarian_id=parl_id, text=body.text.strip())
     db.add(c)
     db.commit()
@@ -167,7 +174,9 @@ def borrar_comentario(comment_id: int, user: User = Depends(current_user), db: S
 
 @router.put("/parlamentarios/{parl_id}/calificacion", response_model=RatingOut, tags=["Calificaciones"],
             summary="Calificar de 1 a 5 (una por usuario; volver a enviar la reemplaza)")
-def calificar(parl_id: int, body: RatingIn, user: User = Depends(current_user), db: Session = Depends(get_db)):
+@limiter.limit("30/minute")
+def calificar(parl_id: int, body: RatingIn, request: Request, user: User = Depends(current_user),
+              db: Session = Depends(get_db)):
     _get(db, parl_id)
     r = db.query(Rating).filter_by(user_id=user.id, parliamentarian_id=parl_id).first()
     if r:

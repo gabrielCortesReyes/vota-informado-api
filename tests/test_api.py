@@ -59,4 +59,4 @@ def test_usuarios(api):
     assert api.post("/auth/login", json={"username": "g@mail.com", "password": "nueva1234"}).status_code == 200
     assert api.post("/auth/restore-password", json={"username": "g@mail.com"}).status_code == 503
     assert api.post("/cache/clear").status_code in (401, 403)
-    assert api.post("/cache/clear", headers=h).status_code == 200
+    assert api.post("/cache/clear", headers=h).status_code == 403  # solo administradores

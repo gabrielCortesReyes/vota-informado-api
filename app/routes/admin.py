@@ -2,13 +2,13 @@
 from datetime import date, datetime, timezone
 from typing import Literal, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query, Request, Response
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import SessionLocal, get_db
-from app.models import Comment, CommentReport, Parliamentarian, Party, ProyectoResumen, Survey
+from app.models import Comment, CommentReport, GastoParlamentario, Parliamentarian, Party, ProyectoResumen, Survey
 from app.routes.encuestas import crear_encuesta
 from app.schemas import CommentReportOut, PartyLogoIn, PartyOut, ReportDecisionIn, SurveyIn, SurveyOut
 from app.security import admin_user
@@ -17,6 +17,9 @@ from app.patrimonio import cargar_declaracion, sincronizar_patrimonio
 from app.routes.patrimonio import patrimonio_out
 from app.schemas import PatrimonioOut, ResumenProyectoIn, ResumenProyectoOut
 from app.sync import sincronizar_todo
+from app.comisiones import sincronizar_comisiones
+from app import gastos
+from app.schemas import GastosImportIn, GastosImportOut
 from app.proyectos import sincronizar_proyectos
 
 router = APIRouter(prefix="/admin", tags=["Administración"], dependencies=[Depends(admin_user)])
@@ -82,6 +85,60 @@ async def _patrimonio_en_segundo_plano(forzar: bool) -> None:
 async def sincronizar_patrimonio_admin(background: BackgroundTasks, forzar: bool = False):
     background.add_task(_patrimonio_en_segundo_plano, forzar)
     return {"message": "Carga de patrimonio iniciada; revisa GET /patrimonio/diputados en unos minutos"}
+
+
+async def _comisiones_en_segundo_plano(anno: int | None) -> None:
+    db = SessionLocal()
+    try:
+        await sincronizar_comisiones(db, anno=anno)
+    finally:
+        db.close()
+
+
+@router.post("/comisiones/sincronizar", status_code=202,
+             summary="Carga las comisiones vigentes, sus integrantes y las sesiones del año (WSComision)")
+async def sincronizar_comisiones_admin(background: BackgroundTasks, anno: int | None = Query(None, ge=2000, le=2100)):
+    background.add_task(_comisiones_en_segundo_plano, anno)
+    return {"message": "Carga de comisiones iniciada; revisa GET /comisiones en unos minutos"}
+
+
+# --- Gastos (transparencia) ----------------------------------------------------------------
+
+@router.post("/gastos", response_model=GastosImportOut,
+             summary="Carga gastos en JSON; por cada diputado, mes y tipo reemplaza lo que había")
+def importar_gastos(body: GastosImportIn, db: Session = Depends(get_db)):
+    return gastos.importar(db, body.gastos, fuente=body.fuente)
+
+
+@router.post("/gastos/csv", response_model=GastosImportOut,
+             summary="Carga gastos desde un CSV (cuerpo text/csv): diputado_id,diputado,anno,mes,tipo,categoria,monto",
+             openapi_extra={"requestBody": {"content": {"text/csv": {"schema": {"type": "string"}}}, "required": True}})
+async def importar_gastos_csv(request: Request, fuente: str | None = Query(None, max_length=300),
+                              db: Session = Depends(get_db)):
+    crudo = await request.body()
+    if len(crudo) > 20_000_000:
+        raise HTTPException(status_code=413, detail="El CSV supera los 20 MB")
+    try:
+        texto = crudo.decode("utf-8")
+    except UnicodeDecodeError:
+        texto = crudo.decode("latin-1")  # Excel en Windows
+    try:
+        filas = gastos.leer_csv(texto)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return gastos.importar(db, filas, fuente=fuente)
+
+
+@router.delete("/gastos", summary="Borra los gastos cargados de un mes (AAAA-MM), opcionalmente de un tipo")
+def borrar_gastos(periodo: str = Query(..., pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
+                  tipo: Literal["operacionales", "pasajes_aereos"] | None = None, db: Session = Depends(get_db)):
+    anno, mes = map(int, periodo.split("-"))
+    q = db.query(GastoParlamentario).filter_by(anno=anno, mes=mes)
+    if tipo:
+        q = q.filter_by(tipo=tipo)
+    n = q.delete()
+    db.commit()
+    return {"eliminadas": n}
 
 
 @router.post("/patrimonio/{parl_id}", response_model=PatrimonioOut,

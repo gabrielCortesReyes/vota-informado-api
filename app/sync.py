@@ -19,6 +19,7 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.asistencia import sincronizar_asistencia
+from app.comisiones import sincronizar_comisiones
 from app.patrimonio import sincronizar_patrimonio
 from app.proyectos import sincronizar_proyectos
 from app.camara.client import consultar
@@ -129,7 +130,8 @@ async def sincronizar_diputados(db: Session) -> int:
             district=str(distrito) if distrito else None,
         )
         vistos.add(int(d["Id"]))
-    _marcar_no_vigentes(db, "diputado", vistos)
+    if vistos:  # si la Cámara responde vacío no se da de baja a nadie (como con los senadores)
+        _marcar_no_vigentes(db, "diputado", vistos)
     db.commit()
     return len(vistos)
 
@@ -342,7 +344,8 @@ async def sincronizar_logos(db: Session, solo_faltantes: bool = True) -> dict:
 async def sincronizar_todo(db: Session, wikipedia: bool = True) -> dict:
     resultado = {}
     for nombre, tarea in (("partidos", sincronizar_partidos), ("diputados", sincronizar_diputados),
-                          ("senadores", sincronizar_senadores), ("asistencia", sincronizar_asistencia),
+                          ("senadores", sincronizar_senadores), ("comisiones", sincronizar_comisiones),
+                          ("asistencia", sincronizar_asistencia),
                           ("patrimonio", sincronizar_patrimonio), ("proyectos", sincronizar_proyectos)):
         try:
             resultado[nombre] = await tarea(db)

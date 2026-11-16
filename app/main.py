@@ -15,9 +15,9 @@ from slowapi.errors import RateLimitExceeded
 
 from app.camara import client
 from app.database import SessionLocal, init_db
-from app.routes import (admin, asistencia, auth, catalogos, diputados, encuestas, legislativo, materias, moderacion,
-                        parlamentarios, patrimonio, sala, usuario)
-from app.security import current_user, limiter
+from app.routes import (admin, asistencia, auth, catalogos, comisiones, diputados, encuestas, gastos, legislativo, materias,
+                        moderacion, parlamentarios, patrimonio, ranking, sala, usuario)
+from app.security import admin_user, limiter
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -36,7 +36,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Vota Informado API",
-    version="3.0.0",
+    version="3.1.0",
     description=(
         "Información de la Cámara de Diputadas y Diputados de Chile en JSON: proyectos de ley, "
         "votaciones, diputados, sesiones, asistencia y catálogos. Fuente: "
@@ -49,8 +49,8 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-for r in (materias, legislativo, diputados, sala, asistencia, catalogos, parlamentarios, moderacion, patrimonio, encuestas, auth, usuario,
-          admin):
+for r in (materias, legislativo, diputados, sala, asistencia, catalogos, parlamentarios, comisiones, ranking, gastos, moderacion,
+          patrimonio, encuestas, auth, usuario, admin):
     app.include_router(r.router)
 
 
@@ -64,6 +64,6 @@ async def health():
     return {"status": "ok"}
 
 
-@app.post("/cache/clear", tags=["General"], summary="Vacía la caché de respuestas de la Cámara (requiere token)")
-async def clear_cache(_=Depends(current_user)):
+@app.post("/cache/clear", tags=["General"], summary="Vacía la caché de respuestas de la Cámara (solo administradores)")
+async def clear_cache(_=Depends(admin_user)):
     return {"eliminadas": client.limpiar_cache()}

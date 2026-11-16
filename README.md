@@ -50,12 +50,12 @@ Los campos con atributo, como `<Sexo Valor="0">Femenino</Sexo>`, quedan como `{"
 | `/proyectos/mensajes?anno=2025` | WSLegislativo `retornarMensajesXAnno` |
 | `/proyectos/mociones?anno=2025` | WSLegislativo `retornarMocionesXAnno` |
 | `/proyectos/{boletin}` | WSLegislativo `retornarProyectoLey` |
-| `/proyectos/{boletin}/votaciones` | WSLegislativo `retornarVotacionesXProyectoLey` |
+| `/proyectos/{boletin}/votaciones` | WSLegislativo `retornarVotacionesXProyectoLey` + `QueSeVota`, resultado corregido y `TramitacionUrl` (ver abajo) |
 | `/proyectos/{boletin}/documento` | WSLegislativo `retornarDocumentoIngresoProyectoLey` |
 | `/proyectos/ley/{numero_ley}` | WSLegislativo `retornarProyectosLeyxNumeroLey` |
 | **Votaciones** | |
 | `/votaciones?anno=2025` | WSLegislativo `retornarVotacionesXAnno` |
-| `/votaciones/{id}` | WSLegislativo `retornarVotacionDetalle` |
+| `/votaciones/{id}` | WSLegislativo `retornarVotacionDetalle` + `Articulo`, `QueSeVota`, tipo y trámite (de las votaciones del proyecto) |
 | **Legislaturas y períodos** | |
 | `/legislaturas`, `/legislaturas/actual` | WSLegislativo `retornarLegislaturas`, `retornarLegislaturaActual` |
 | `/periodos`, `/periodos/actual` | WSLegislativo `retornarPeriodosLegislativos`, `retornarPeriodoLegislativoActual` |
@@ -117,6 +117,14 @@ Catálogos: `comunas`, `distritos`, `regiones`, `provincias`, `ministerios`, `pa
 | PUT/DELETE | `/comentarios/{id}` | Editar o borrar un comentario propio |
 | PUT | `/parlamentarios/{id}/calificacion` | `{"score": 1-5}`, una por usuario (reenviar la cambia) |
 | GET | `/parlamentarios/{id}/calificacion` (y `/mia`) | Promedio y distribución |
+| GET | `/comisiones?tipo=&anno=` | Comisiones vigentes con presidente, n° de integrantes y sesiones del año |
+| GET | `/comisiones/{id}?anno=` | Integrantes (presidente primero) y sesiones de una comisión |
+| GET | `/parlamentarios/{id}/comisiones` | Comisiones que integra un diputado y si las preside |
+| GET | `/ranking/calificaciones?orden=desc&partido_id=&distrito=` | Diputados con al menos una calificación, por promedio: mejor (desc) o peor (asc) |
+| GET | `/ranking/comentarios?orden=desc&desde=` | Diputados con al menos un comentario: más o menos comentados (por personas distintas) |
+| GET | `/parlamentarios/{id}/gastos?tipo=&desde=AAAA-MM&hasta=` | Gastos de un diputado por mes y categoría (transparencia) |
+| GET | `/gastos/diputados?categoria=TRASLACIÓN&desde=&hasta=&orden=` | Ranking de gasto total o de una categoría |
+| GET | `/gastos/categorias`, `/gastos/periodos` | Categorías y meses cargados |
 | GET | `/encuestas`, `/encuestas/{id}` | Encuestas activas y sus preguntas |
 | POST | `/encuestas/{id}/respuestas` | `{"parliamentarian_id", "answers": [{"question_id", "value"}]}` |
 | GET | `/encuestas/{id}/resultados?parliamentarian_id=` | % de "sí", promedios y conteos |
@@ -136,16 +144,31 @@ Al arrancar se crea la encuesta **"Evaluación de tu parlamentario"**: ¿Votaste
 | POST | `/admin/encuestas` | Crear una encuesta nueva |
 | PATCH | `/admin/encuestas/{id}` | `{"active": false}` para cerrarla |
 | PATCH | `/admin/comentarios/{id}` | `{"hidden": true}` para ocultar un comentario |
+| POST | `/admin/comisiones/sincronizar?anno=` | Carga comisiones, integrantes y sesiones (también en la sincronización diaria) |
+| POST | `/admin/gastos/csv?fuente=` | Carga gastos desde un CSV (`text/csv`); `POST /admin/gastos` en JSON; `DELETE /admin/gastos?periodo=AAAA-MM` |
 | PATCH | `/admin/partidos/{id}/logo` | Fijar a mano `logo_url`, `logo_license`, `logo_author`, `logo_source_url` |
 
 Rutas con token: header `Authorization: Bearer <access_token>`.
-Otras: `/health`, `/cache/clear` (requiere token).
+Otras: `/health`, `/cache/clear` (solo administradores).
+Comentar: máx. 10 por minuto y 20 por día por cuenta; calificar: máx. 30 por minuto.
 
 **Materias**: la Cámara no deja buscar proyectos por materia y los listados por año no traen materias
 ni autores. La sincronización diaria (`app/proyectos.py`) guarda mociones y mensajes desde
 `PROYECTOS_DESDE_ANNO` (2025) y pide el detalle de hasta `PROYECTOS_DETALLES_POR_CORRIDA` (500) proyectos
 por corrida; los de los últimos 90 días se releen cada 7 (la Cámara asigna materias después).
 Primera carga: `python -m app.cli proyectos --limite 3000` o varias veces `POST /admin/proyectos/sincronizar`.
+
+**Qué se votó** (`QueSeVota`): la Cámara describe lo votado en `Articulo` como texto libre. `app/votaciones.py` lo
+separa en `autor`, `votacion_separada`, `admisibilidad`, `niveles` (partida, capítulo, programa, subtítulo, ítem),
+`indicaciones`, `detalle`, `texto` y un `titulo` legible. `retornarVotacionesXProyectoLey` marca «Unánime» las
+votaciones rechazadas: se reemplaza por el resultado de `retornarVotacionesXAnno` (`ResultadoCorregido: true`).
+
+**Comisiones**: WSComision usa otro Id para cada diputado que las votaciones; `app/identificar.py` los asocia por
+apellidos al padrón. La Cámara no publica la asistencia ni los temas de las sesiones de comisión.
+
+**Gastos**: la Cámara no los entrega por API (solo fichas por diputado y mes en camara.cl, que bloquean accesos
+automáticos). Se cargan desde un CSV: ver `app/gastos.py`, `deploy/gastos/plantilla.csv` y la solicitud por Ley de
+Transparencia en `docs/solicitud_transparencia_gastos.md`.
 
 Errores: `404` si la Cámara no tiene el dato, `502` si la Cámara no responde o rechaza los parámetros.
 

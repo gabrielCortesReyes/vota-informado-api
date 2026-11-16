@@ -4,7 +4,8 @@ Los datos legislativos (proyectos, votaciones, sesiones) se leen en vivo de la C
 En la base se guardan: usuarios, un padrón de parlamentarios y partidos (para poder
 comentarlos, calificarlos y asociarles encuestas) y la participación de los usuarios.
 """
-from sqlalchemy import (JSON, TIMESTAMP, Boolean, CheckConstraint, Column, Date, ForeignKey, Index, Integer, String, Text,
+from sqlalchemy import (JSON, TIMESTAMP, BigInteger, Boolean, CheckConstraint, Column, Date, ForeignKey, Index, Integer,
+                        String, Text,
                         UniqueConstraint, func)
 from sqlalchemy.orm import relationship
 
@@ -348,3 +349,74 @@ class UserBlock(Base):
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp(), nullable=False)
 
     blocked = relationship("User", foreign_keys=[blocked_id])
+
+
+# --- Comisiones (WSComision) --------------------------------------------------------
+
+class Comision(Base):
+    """Comisión de la Cámara (Id = Id de la Cámara). presidente_id = Id del diputado en las votaciones."""
+    __tablename__ = "comisiones"
+
+    id = Column(Integer, primary_key=True, autoincrement=False)
+    nombre = Column(String(300), nullable=False)
+    alias = Column(String(150), nullable=True)
+    tipo = Column(String(80), nullable=True)          # Permanente | Especial Investigadora | ...
+    numero = Column(Integer, nullable=True)
+    fecha_inicio = Column(TIMESTAMP, nullable=True)
+    fecha_termino = Column(TIMESTAMP, nullable=True)
+    correo = Column(String(150), nullable=True)
+    telefono = Column(String(50), nullable=True)
+    presidente_id = Column(Integer, nullable=True)    # Parliamentarian.external_id
+    vigente = Column(Boolean, nullable=False, default=True)
+    updated_at = Column(TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp())
+
+    integrantes = relationship("ComisionIntegrante", back_populates="comision", cascade="all, delete-orphan")
+
+
+class ComisionIntegrante(Base):
+    """Diputado integrante de una comisión (diputado_id = Parliamentarian.external_id)."""
+    __tablename__ = "comision_integrantes"
+    __table_args__ = (UniqueConstraint("comision_id", "diputado_id"),)
+
+    id = Column(Integer, primary_key=True)
+    comision_id = Column(Integer, ForeignKey("comisiones.id", ondelete="CASCADE"), nullable=False, index=True)
+    diputado_id = Column(Integer, nullable=False, index=True)
+    fecha_inicio = Column(TIMESTAMP, nullable=True)
+    fecha_termino = Column(TIMESTAMP, nullable=True)
+
+    comision = relationship("Comision", back_populates="integrantes")
+
+
+class ComisionSesion(Base):
+    """Sesión de una comisión (Id = Id de la Cámara). La Cámara no publica su asistencia ni sus temas."""
+    __tablename__ = "comision_sesiones"
+
+    id = Column(Integer, primary_key=True, autoincrement=False)
+    comision_id = Column(Integer, ForeignKey("comisiones.id", ondelete="CASCADE"), nullable=False, index=True)
+    numero = Column(Integer, nullable=True)
+    tipo = Column(String(50), nullable=True)
+    estado = Column(String(50), nullable=True)
+    fecha_inicio = Column(TIMESTAMP, nullable=True, index=True)
+    fecha_termino = Column(TIMESTAMP, nullable=True)
+
+
+# --- Gastos (Transparencia Activa de la Cámara) -------------------------------------
+
+class GastoParlamentario(Base):
+    """Monto mensual de un diputado en una categoría de gasto, cargado desde los datos de transparencia.
+
+    tipo: "operacionales" (gastos operacionales: traslación, telefonía, arriendo...) o "pasajes_aereos".
+    """
+    __tablename__ = "gastos_parlamentarios"
+    __table_args__ = (UniqueConstraint("diputado_id", "anno", "mes", "tipo", "categoria"),
+                      Index("ix_gastos_periodo", "anno", "mes"))
+
+    id = Column(Integer, primary_key=True)
+    diputado_id = Column(Integer, nullable=False, index=True)  # Parliamentarian.external_id
+    anno = Column(Integer, nullable=False)
+    mes = Column(Integer, nullable=False)
+    tipo = Column(String(30), nullable=False, default="operacionales")
+    categoria = Column(String(200), nullable=False)
+    monto = Column(BigInteger, nullable=False)                  # pesos
+    fuente = Column(String(300), nullable=True)
+    cargado_at = Column(TIMESTAMP, server_default=func.current_timestamp(), nullable=False)

@@ -4,6 +4,8 @@
   python -m app.cli asistencia [AAAA-MM-DD]        Carga la asistencia a la Sala (desde el inicio del período)
   python -m app.cli patrimonio [--forzar]          Carga las declaraciones de patrimonio (InfoProbidad)
   python -m app.cli proyectos [AAAA] [--limite N]  Carga proyectos de ley con sus materias y autores
+  python -m app.cli comisiones [AAAA]              Carga comisiones, integrantes y sesiones del año
+  python -m app.cli gastos archivo.csv [fuente]    Carga gastos de transparencia desde un CSV (ver app/gastos.py)
   python -m app.cli admin correo@ejemplo.cl         Da rol de administrador a un usuario
 """
 import asyncio
@@ -15,6 +17,8 @@ from app.asistencia import sincronizar_asistencia
 from app.patrimonio import sincronizar_patrimonio
 from app.proyectos import sincronizar_proyectos
 from app.sync import sincronizar_todo
+from app.comisiones import sincronizar_comisiones
+from app import gastos
 
 
 def main(args: list[str]) -> None:
@@ -31,6 +35,17 @@ def main(args: list[str]) -> None:
             anno = next((int(a) for a in args[1:2] if a.isdigit()), None)
             limite = int(args[args.index("--limite") + 1]) if "--limite" in args else 500
             print(asyncio.run(sincronizar_proyectos(db, desde_anno=anno, limite=limite)))
+        elif args[:1] == ["comisiones"]:
+            anno = next((int(a) for a in args[1:2] if a.isdigit()), None)
+            print(asyncio.run(sincronizar_comisiones(db, anno=anno)))
+        elif args[:1] == ["gastos"] and len(args) >= 2:
+            with open(args[1], "rb") as f:
+                crudo = f.read()
+            try:
+                texto = crudo.decode("utf-8")
+            except UnicodeDecodeError:
+                texto = crudo.decode("latin-1")
+            print(gastos.importar(db, gastos.leer_csv(texto), fuente=args[2] if len(args) > 2 else args[1]))
         elif args[:1] == ["admin"] and len(args) == 2:
             cred = db.query(UserCredentials).filter(UserCredentials.username == args[1].lower()).first()
             if not cred:

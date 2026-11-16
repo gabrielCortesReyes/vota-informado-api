@@ -9,6 +9,7 @@ from app.database import get_db
 from app.distritos import votos_del_distrito
 from app.models import ProyectoResumen
 from app.schemas import ResumenProyectoOut
+from app.votaciones import enriquecer_proyecto, enriquecer_votacion, sin_marcas
 
 WS = "WSLegislativo"
 router = APIRouter(tags=["Legislativo"])
@@ -43,9 +44,12 @@ async def proyecto(boletin: str = Path(..., examples=["11144-07"])):
     return await consultar_o_404(WS, "retornarProyectoLey", "Proyecto no encontrado", prmNumeroBoletin=boletin)
 
 
-@router.get("/proyectos/{boletin}/votaciones", summary="Proyecto de ley con sus votaciones")
+@router.get("/proyectos/{boletin}/votaciones",
+            summary="Proyecto de ley con sus votaciones; cada una con QueSeVota (lo votado, separado en partes) "
+                    "y el resultado corregido")
 async def votaciones_proyecto(boletin: str = Path(..., examples=["11144-07"])):
-    return await consultar_o_404(WS, "retornarVotacionesXProyectoLey", "Proyecto no encontrado", prmNumeroBoletin=boletin)
+    data = await consultar_o_404(WS, "retornarVotacionesXProyectoLey", "Proyecto no encontrado", prmNumeroBoletin=boletin)
+    return sin_marcas(await enriquecer_proyecto(data))
 
 
 @router.get("/proyectos/{boletin}/documento", summary="Documento de ingreso del proyecto de ley")
@@ -69,9 +73,11 @@ async def votaciones(anno: int | None = AnnoQuery):
     return await consultar(WS, "retornarVotacionesXAnno", prmAnno=_anno(anno))
 
 
-@router.get("/votaciones/{votacion_id}", summary="Detalle de una votación (voto de cada diputado)")
+@router.get("/votaciones/{votacion_id}",
+            summary="Detalle de una votación (voto de cada diputado), con lo que se votó (QueSeVota) y el trámite")
 async def votacion(votacion_id: int):
-    return await consultar_o_404(WS, "retornarVotacionDetalle", "Votación no encontrada", prmVotacionId=votacion_id)
+    data = await consultar_o_404(WS, "retornarVotacionDetalle", "Votación no encontrada", prmVotacionId=votacion_id)
+    return sin_marcas(await enriquecer_votacion(data))
 
 
 @router.get("/votaciones/{votacion_id}/distrito/{distrito}",

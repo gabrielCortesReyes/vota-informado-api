@@ -11,4 +11,5 @@ USER appuser
 
 EXPOSE 8080
 # Cloud Run define PORT; en local se puede cambiar con -e PORT=8000
-CMD exec uvicorn app.main:app --host 0.0.0.0 --port $PORT
+# --proxy-headers: detrás del proxy de Cloud Run, la IP real del cliente (X-Forwarded-For) para los límites por IP
+CMD exec uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'
