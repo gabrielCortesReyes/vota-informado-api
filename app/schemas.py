@@ -426,6 +426,7 @@ class RankingNotaItem(BaseModel):
     parlamentario: ParliamentarianOut
     promedio: float
     cantidad: int
+    nota_ajustada: float = Field(description="Compatibilidad: igual al promedio (ya no se ajusta)")
 
 
 class RankingComentariosItem(BaseModel):
@@ -436,6 +437,7 @@ class RankingComentariosItem(BaseModel):
 
 
 class RankingNotaOut(BaseModel):
+    minimo_calificaciones: int = Field(1, description="Compatibilidad: entra todo diputado con al menos una")
     promedio_general: Optional[float] = None
     items: list[RankingNotaItem]
 
@@ -517,18 +519,14 @@ class GastoRankingItem(BaseModel):
     total: int
     meses: int
     promedio_mensual: int
+    # agregados después (la app publicada los ignora): de dónde sale el total
+    origen: Literal["detalle", "resumen"] = Field("detalle", description="detalle: suma de los meses cargados; "
+                                                  "resumen: total del período de otra fuente")
     url_ficha: Optional[str] = None
-
-
-class GastoRankingOut(BaseModel):
-    origen: Literal["detalle", "resumen"] = Field(description="detalle: suma de los meses cargados; resumen: total de otra fuente")
     incluye: Optional[str] = None
-    fuente: Optional[str] = None
     atribucion: Optional[str] = None
     licencia: Optional[str] = None
     licencia_url: Optional[str] = None
-    datos_al: Optional[datetime] = None
-    items: list[GastoRankingItem]
 
 
 class GastosResumenImportOut(BaseModel):

@@ -9,8 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
 from app.gastos import fuente_url
 from app.models import GastoParlamentario, GastoResumen, Parliamentarian
-from app.schemas import (GastoCategoria, GastoMes, GastoRankingItem, GastoRankingOut, GastoResumenOut,
-                         GastosParlamentarioOut)
+from app.schemas import GastoCategoria, GastoMes, GastoRankingItem, GastoResumenOut, GastosParlamentarioOut
 
 router = APIRouter(tags=["Gastos"])
 
@@ -89,7 +88,7 @@ def periodos(tipo: Tipo = None, db: Session = Depends(get_db)):
     return [{"periodo": f"{a}-{m:02d}", "diputados": n} for a, m, n in sorted(filas, reverse=True)]
 
 
-@router.get("/gastos/diputados", response_model=GastoRankingOut,
+@router.get("/gastos/diputados", response_model=list[GastoRankingItem],
             summary="Ranking de diputados por gasto. Sin categoría ni período usa el total del período (resumen) si está "
                     "cargado; si no, suma los meses cargados (opcionalmente de una categoría, p. ej. traslación)")
 def ranking(tipo: Tipo = None, categoria: Optional[str] = Query(None, examples=["TRASLACIÓN"]),
@@ -108,17 +107,16 @@ def ranking(tipo: Tipo = None, categoria: Optional[str] = Query(None, examples=[
     if resumenes:
         filas = [((r.total, r.meses, r.url_ficha), p) for p in diputados if (r := resumenes.get(p.external_id))]
         uno = next(iter(resumenes.values()))
-        cabecera = dict(origen="resumen", incluye=uno.incluye, fuente=uno.fuente, atribucion=uno.atribucion,
-                        licencia=uno.licencia, licencia_url=uno.licencia_url, datos_al=uno.datos_al)
+        cabecera = dict(origen="resumen", incluye=uno.incluye, atribucion=uno.atribucion, licencia=uno.licencia,
+                        licencia_url=uno.licencia_url)
     else:
         q = _filtrar(db.query(GastoParlamentario.diputado_id, func.sum(GastoParlamentario.monto),
                               func.count(func.distinct(GastoParlamentario.anno * 100 + GastoParlamentario.mes))),
                      tipo, desde, hasta, categoria)
         totales = {d: (int(t or 0), n, None) for d, t, n in q.group_by(GastoParlamentario.diputado_id).all()}
         filas = [(totales[p.external_id], p) for p in diputados if p.external_id in totales]
-        cabecera = dict(origen="detalle", fuente="Transparencia Activa, camara.cl")
+        cabecera = dict(origen="detalle")
     filas.sort(key=lambda f: (f[0][0] if orden == "asc" else -f[0][0], f[1].last_name or ""))
-    return GastoRankingOut(**cabecera, items=[
-        GastoRankingItem(posicion=i + 1, parlamentario=p, total=t, meses=n, promedio_mensual=t // n if n else 0,
-                         url_ficha=url)
-        for i, ((t, n, url), p) in enumerate(filas[:limit])])
+    return [GastoRankingItem(posicion=i + 1, parlamentario=p, total=t, meses=n, promedio_mensual=t // n if n else 0,
+                             url_ficha=url, **cabecera)
+            for i, ((t, n, url), p) in enumerate(filas[:limit])]

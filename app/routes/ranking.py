@@ -20,6 +20,8 @@ from app.schemas import RankingComentariosItem, RankingComentariosOut, RankingNo
 
 router = APIRouter(prefix="/ranking", tags=["Ranking"])
 
+Camara = Optional[Literal["diputado", "senador"]]  # compatibilidad: con "senador" la lista sale vacía
+
 
 def _diputados(db: Session, partido_id: Optional[int], distrito: Optional[int]) -> dict[int, Parliamentarian]:
     q = (db.query(Parliamentarian).options(joinedload(Parliamentarian.party))
@@ -38,7 +40,9 @@ def _nombre(p: Parliamentarian) -> tuple:
 @router.get("/calificaciones", response_model=RankingNotaOut,
             summary="Diputados con al menos una calificación, por promedio (desc: mejor evaluados; asc: peor)")
 def ranking_calificaciones(orden: Literal["desc", "asc"] = "desc", partido_id: Optional[int] = None,
-                           distrito: Optional[int] = None, db: Session = Depends(get_db)):
+                           distrito: Optional[int] = None, camara: Camara = None, db: Session = Depends(get_db)):
+    if camara == "senador":  # el ranking es solo de diputados (la app publicada aún puede pedir senadores)
+        return RankingNotaOut(items=[])
     dip = _diputados(db, partido_id, distrito)
     filas = (db.query(Rating.parliamentarian_id, func.count(Rating.id), func.sum(Rating.score))
              .group_by(Rating.parliamentarian_id).all())
@@ -48,7 +52,7 @@ def ranking_calificaciones(orden: Literal["desc", "asc"] = "desc", partido_id: O
     signo = -1 if orden == "desc" else 1
     items.sort(key=lambda x: (signo * x[0], -x[1], _nombre(x[2])))
     return RankingNotaOut(promedio_general=promedio_general, items=[
-        RankingNotaItem(posicion=i + 1, parlamentario=p, promedio=prom, cantidad=n)
+        RankingNotaItem(posicion=i + 1, parlamentario=p, promedio=prom, cantidad=n, nota_ajustada=prom)
         for i, (prom, n, p) in enumerate(items)])
 
 
@@ -57,7 +61,9 @@ def ranking_calificaciones(orden: Literal["desc", "asc"] = "desc", partido_id: O
 def ranking_comentarios(orden: Literal["desc", "asc"] = "desc", partido_id: Optional[int] = None,
                         distrito: Optional[int] = None,
                         desde: Optional[date] = Query(None, description="Solo comentarios desde esta fecha"),
-                        db: Session = Depends(get_db)):
+                        camara: Camara = None, db: Session = Depends(get_db)):
+    if camara == "senador":
+        return RankingComentariosOut(items=[])
     dip = _diputados(db, partido_id, distrito)
     q = (db.query(Comment.parliamentarian_id, func.count(func.distinct(Comment.user_id)), func.count(Comment.id))
          .filter(Comment.deleted_at.is_(None), Comment.hidden.is_(False)))

@@ -53,6 +53,10 @@ def test_ranking_calificaciones(api):
     assert [(i["posicion"], i["parlamentario"]["external_id"], i["promedio"], i["cantidad"]) for i in r["items"]] == [
         (1, 1010, 5.0, 2), (2, 1009, 4.5, 12), (3, 1011, 2.0, 12)]
     assert r["promedio_general"] == 3.38  # solo diputados
+    # campos que ya leía la app publicada
+    assert r["minimo_calificaciones"] == 1 and r["items"][0]["nota_ajustada"] == 5.0
+    assert api.get("/ranking/calificaciones", params={"camara": "senador"}).json()["items"] == []
+    assert len(api.get("/ranking/calificaciones", params={"camara": "diputado", "limit": 5}).json()["items"]) == 3
     asc = api.get("/ranking/calificaciones", params={"orden": "asc"}).json()["items"]
     assert [(i["posicion"], i["parlamentario"]["external_id"]) for i in asc] == [(1, 1011), (2, 1009), (3, 1010)]
 
