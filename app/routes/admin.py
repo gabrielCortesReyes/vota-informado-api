@@ -19,7 +19,7 @@ from app.schemas import PatrimonioOut, ResumenProyectoIn, ResumenProyectoOut
 from app.sync import sincronizar_todo
 from app.comisiones import sincronizar_comisiones
 from app import gastos
-from app.schemas import GastosImportIn, GastosImportOut
+from app.schemas import GastosImportIn, GastosImportOut, GastosResumenImportOut
 from app.proyectos import sincronizar_proyectos
 
 router = APIRouter(prefix="/admin", tags=["Administración"], dependencies=[Depends(admin_user)])
@@ -127,6 +127,15 @@ async def importar_gastos_csv(request: Request, fuente: str | None = Query(None,
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     return gastos.importar(db, filas, fuente=fuente)
+
+
+@router.post("/gastos/resumen", response_model=GastosResumenImportOut,
+             summary="Carga totales del período por diputado (formato de Congreso Visible); reemplaza los anteriores")
+def importar_gastos_resumen(datos: dict, db: Session = Depends(get_db)):
+    try:
+        return gastos.importar_resumen(db, datos)
+    except (ValueError, KeyError, TypeError) as e:
+        raise HTTPException(status_code=422, detail=str(e))
 
 
 @router.delete("/gastos", summary="Borra los gastos cargados de un mes (AAAA-MM), opcionalmente de un tipo")

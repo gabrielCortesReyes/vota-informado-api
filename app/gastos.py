@@ -22,7 +22,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from app.identificar import IndiceDiputados
-from app.models import GastoParlamentario, Parliamentarian
+from app.models import GastoParlamentario, GastoResumen, Parliamentarian
 from app.schemas import GastoIn
 
 TIPOS = {"operacionales", "pasajes_aereos"}
@@ -107,3 +107,49 @@ def importar(db: Session, filas: list[GastoIn], fuente: str | None = None) -> di
                                       monto=monto, fuente=fuente, cargado_at=ahora))
     db.commit()
     return {"filas": sum(len(c) for c in grupos.values()), "meses": len(grupos), "sin_identificar": sin_identificar}
+
+
+# --- Totales del período (fuentes que no publican el desglose) --------------------------------------
+
+INCLUYE_CONGRESO_VISIBLE = "Dieta, gastos operacionales, personal de apoyo y asesorías externas (sin pasajes)"
+
+
+def _fecha(valor) -> datetime | None:
+    try:
+        return datetime.fromisoformat(str(valor).replace("Z", "+00:00")).replace(tzinfo=None) if valor else None
+    except ValueError:
+        return None
+
+
+def importar_resumen(db: Session, datos: dict) -> dict:
+    """Carga un dataset de totales por diputado con el formato de Congreso Visible
+    ({"registros": [{"nombre", "gasto_total_clp", "meses_publicados", "url_ficha"}], "fuente", "atribucion",
+    "licencia", "licenciaUrl", "metodologia", "datosAl"}). Reemplaza los totales anteriores."""
+    registros = datos.get("registros")
+    if not isinstance(registros, list) or not registros:
+        raise ValueError("El JSON no trae «registros»")
+    atribucion = datos.get("atribucion") or datos.get("fuente")
+    if not atribucion:
+        raise ValueError("Falta «atribucion»: la licencia exige citar la fuente")
+    es_congreso_visible = "congresovisible" in f"{atribucion} {datos.get('metodologia', '')}".lower()
+    indice = IndiceDiputados(db)
+    filas: dict[int, GastoResumen] = {}
+    sin_identificar: list[str] = []
+    for r in registros:
+        nombre = (r or {}).get("nombre")
+        dip = indice.buscar(nombre=nombre)
+        if dip is None:
+            sin_identificar.append(str(nombre))
+            continue
+        filas[dip] = GastoResumen(
+            diputado_id=dip, total=int(r["gasto_total_clp"]), meses=int(r.get("meses_publicados") or 0),
+            incluye=datos.get("incluye") or (INCLUYE_CONGRESO_VISIBLE if es_congreso_visible else None),
+            url_ficha=r.get("url_ficha"), fuente=str(datos.get("fuente") or atribucion)[:200],
+            atribucion=str(atribucion)[:200], licencia=datos.get("licencia"), licencia_url=datos.get("licenciaUrl"),
+            metodologia_url=datos.get("metodologia"), datos_al=_fecha(datos.get("datosAl")))
+    if len(filas) < 0.5 * len(registros):
+        raise ValueError(f"Solo se identificó a {len(filas)} de {len(registros)} diputados; no se cargó nada")
+    db.query(GastoResumen).delete()
+    db.add_all(filas.values())
+    db.commit()
+    return {"cargados": len(filas), "sin_identificar": sin_identificar}

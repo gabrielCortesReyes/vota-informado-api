@@ -420,3 +420,22 @@ class GastoParlamentario(Base):
     monto = Column(BigInteger, nullable=False)                  # pesos
     fuente = Column(String(300), nullable=True)
     cargado_at = Column(TIMESTAMP, server_default=func.current_timestamp(), nullable=False)
+
+
+class GastoResumen(Base):
+    """Gasto total de un diputado en el período, de una fuente que solo publica el total (p. ej. Congreso Visible:
+    dieta + gastos operacionales + personal de apoyo + asesorías externas; sin pasajes)."""
+    __tablename__ = "gastos_resumen"
+
+    diputado_id = Column(Integer, primary_key=True, autoincrement=False)  # Parliamentarian.external_id
+    total = Column(BigInteger, nullable=False)                             # pesos
+    meses = Column(Integer, nullable=False)
+    incluye = Column(String(300), nullable=True)
+    url_ficha = Column(String(300), nullable=True)
+    fuente = Column(String(200), nullable=False)
+    atribucion = Column(String(200), nullable=True)
+    licencia = Column(String(50), nullable=True)
+    licencia_url = Column(String(300), nullable=True)
+    metodologia_url = Column(String(300), nullable=True)
+    datos_al = Column(TIMESTAMP, nullable=True)
+    cargado_at = Column(TIMESTAMP, server_default=func.current_timestamp(), nullable=False)

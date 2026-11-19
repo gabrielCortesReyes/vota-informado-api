@@ -8,8 +8,9 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
 from app.gastos import fuente_url
-from app.models import GastoParlamentario, Parliamentarian
-from app.schemas import GastoCategoria, GastoMes, GastoRankingItem, GastosParlamentarioOut
+from app.models import GastoParlamentario, GastoResumen, Parliamentarian
+from app.schemas import (GastoCategoria, GastoMes, GastoRankingItem, GastoRankingOut, GastoResumenOut,
+                         GastosParlamentarioOut)
 
 router = APIRouter(tags=["Gastos"])
 
@@ -32,8 +33,15 @@ def _filtrar(q, tipo: Tipo, desde: Optional[str], hasta: Optional[str], categori
     return q
 
 
+def _resumen_out(r: GastoResumen) -> GastoResumenOut:
+    return GastoResumenOut(total=r.total, meses=r.meses, promedio_mensual=r.total // r.meses if r.meses else 0,
+                           incluye=r.incluye, url_ficha=r.url_ficha, fuente=r.fuente, atribucion=r.atribucion,
+                           licencia=r.licencia, licencia_url=r.licencia_url, metodologia_url=r.metodologia_url,
+                           datos_al=r.datos_al)
+
+
 @router.get("/parlamentarios/{parl_id}/gastos", response_model=GastosParlamentarioOut,
-            summary="Gastos de un diputado por mes y categoría (gastos operacionales y pasajes aéreos)")
+            summary="Gastos de un diputado: por mes y categoría si están cargados, y el total del período (resumen)")
 def gastos_parlamentario(parl_id: int, tipo: Tipo = None,
                          desde: Optional[str] = Query(None, pattern=PERIODO, description="AAAA-MM"),
                          hasta: Optional[str] = Query(None, pattern=PERIODO, description="AAAA-MM"),
@@ -60,7 +68,8 @@ def gastos_parlamentario(parl_id: int, tipo: Tipo = None,
         por_categoria=[GastoCategoria(categoria=c, monto=v) for c, v in sorted(por_categoria.items(), key=lambda kv: -kv[1]) if v],
         desde=f"{periodos[0][0]}-{periodos[0][1]:02d}" if periodos else None,
         hasta=f"{periodos[-1][0]}-{periodos[-1][1]:02d}" if periodos else None,
-        actualizado=max((f.cargado_at for f in filas), default=None), fuente_url=fuente_url(p.external_id, tipo or "operacionales"))
+        actualizado=max((f.cargado_at for f in filas), default=None), fuente_url=fuente_url(p.external_id, tipo or "operacionales"),
+        resumen=_resumen_out(r) if (r := db.get(GastoResumen, p.external_id)) else None)
 
 
 @router.get("/gastos/categorias", summary="Categorías de gasto cargadas, con el total de todos los diputados")
@@ -80,23 +89,36 @@ def periodos(tipo: Tipo = None, db: Session = Depends(get_db)):
     return [{"periodo": f"{a}-{m:02d}", "diputados": n} for a, m, n in sorted(filas, reverse=True)]
 
 
-@router.get("/gastos/diputados", response_model=list[GastoRankingItem],
-            summary="Ranking de diputados por gasto (total del período; opcionalmente de una categoría, p. ej. traslación)")
+@router.get("/gastos/diputados", response_model=GastoRankingOut,
+            summary="Ranking de diputados por gasto. Sin categoría ni período usa el total del período (resumen) si está "
+                    "cargado; si no, suma los meses cargados (opcionalmente de una categoría, p. ej. traslación)")
 def ranking(tipo: Tipo = None, categoria: Optional[str] = Query(None, examples=["TRASLACIÓN"]),
             desde: Optional[str] = Query(None, pattern=PERIODO), hasta: Optional[str] = Query(None, pattern=PERIODO),
             orden: Literal["desc", "asc"] = "desc", partido_id: Optional[int] = None, distrito: Optional[int] = None,
             limit: int = Query(200, ge=1, le=500), db: Session = Depends(get_db)):
-    q = _filtrar(db.query(GastoParlamentario.diputado_id, func.sum(GastoParlamentario.monto),
-                          func.count(func.distinct(GastoParlamentario.anno * 100 + GastoParlamentario.mes))),
-                 tipo, desde, hasta, categoria)
-    totales = {d: (int(t or 0), n) for d, t, n in q.group_by(GastoParlamentario.diputado_id).all()}
     pq = (db.query(Parliamentarian).options(joinedload(Parliamentarian.party))
           .filter(Parliamentarian.chamber == "diputado", Parliamentarian.current.is_(True)))
     if partido_id:
         pq = pq.filter(Parliamentarian.party_id == partido_id)
     if distrito:
         pq = pq.filter(Parliamentarian.district == str(distrito))
-    filas = [(totales[p.external_id], p) for p in pq.all() if p.external_id in totales]
+    diputados = pq.all()
+
+    resumenes = {} if (tipo or categoria or desde or hasta) else {r.diputado_id: r for r in db.query(GastoResumen)}
+    if resumenes:
+        filas = [((r.total, r.meses, r.url_ficha), p) for p in diputados if (r := resumenes.get(p.external_id))]
+        uno = next(iter(resumenes.values()))
+        cabecera = dict(origen="resumen", incluye=uno.incluye, fuente=uno.fuente, atribucion=uno.atribucion,
+                        licencia=uno.licencia, licencia_url=uno.licencia_url, datos_al=uno.datos_al)
+    else:
+        q = _filtrar(db.query(GastoParlamentario.diputado_id, func.sum(GastoParlamentario.monto),
+                              func.count(func.distinct(GastoParlamentario.anno * 100 + GastoParlamentario.mes))),
+                     tipo, desde, hasta, categoria)
+        totales = {d: (int(t or 0), n, None) for d, t, n in q.group_by(GastoParlamentario.diputado_id).all()}
+        filas = [(totales[p.external_id], p) for p in diputados if p.external_id in totales]
+        cabecera = dict(origen="detalle", fuente="Transparencia Activa, camara.cl")
     filas.sort(key=lambda f: (f[0][0] if orden == "asc" else -f[0][0], f[1].last_name or ""))
-    return [GastoRankingItem(posicion=i + 1, parlamentario=p, total=t, meses=n, promedio_mensual=t // n if n else 0)
-            for i, ((t, n), p) in enumerate(filas[:limit])]
+    return GastoRankingOut(**cabecera, items=[
+        GastoRankingItem(posicion=i + 1, parlamentario=p, total=t, meses=n, promedio_mensual=t // n if n else 0,
+                         url_ficha=url)
+        for i, ((t, n, url), p) in enumerate(filas[:limit])])

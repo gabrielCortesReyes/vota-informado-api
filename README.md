@@ -123,7 +123,7 @@ Catálogos: `comunas`, `distritos`, `regiones`, `provincias`, `ministerios`, `pa
 | GET | `/ranking/calificaciones?orden=desc&partido_id=&distrito=` | Diputados con al menos una calificación, por promedio: mejor (desc) o peor (asc) |
 | GET | `/ranking/comentarios?orden=desc&desde=` | Diputados con al menos un comentario: más o menos comentados (por personas distintas) |
 | GET | `/parlamentarios/{id}/gastos?tipo=&desde=AAAA-MM&hasta=` | Gastos de un diputado por mes y categoría (transparencia) |
-| GET | `/gastos/diputados?categoria=TRASLACIÓN&desde=&hasta=&orden=` | Ranking de gasto total o de una categoría |
+| GET | `/gastos/diputados?categoria=TRASLACIÓN&desde=&hasta=&orden=` | Ranking de gasto: sin filtros usa el total del período (resumen, con su atribución); con categoría o período, el detalle mensual |
 | GET | `/gastos/categorias`, `/gastos/periodos` | Categorías y meses cargados |
 | GET | `/encuestas`, `/encuestas/{id}` | Encuestas activas y sus preguntas |
 | POST | `/encuestas/{id}/respuestas` | `{"parliamentarian_id", "answers": [{"question_id", "value"}]}` |
@@ -145,6 +145,7 @@ Al arrancar se crea la encuesta **"Evaluación de tu parlamentario"**: ¿Votaste
 | PATCH | `/admin/encuestas/{id}` | `{"active": false}` para cerrarla |
 | PATCH | `/admin/comentarios/{id}` | `{"hidden": true}` para ocultar un comentario |
 | POST | `/admin/comisiones/sincronizar?anno=` | Carga comisiones, integrantes y sesiones (también en la sincronización diaria) |
+| POST | `/admin/gastos/resumen` | Carga totales del período por diputado (JSON de Congreso Visible); reemplaza los anteriores |
 | POST | `/admin/gastos/csv?fuente=` | Carga gastos desde un CSV (`text/csv`); `POST /admin/gastos` en JSON; `DELETE /admin/gastos?periodo=AAAA-MM` |
 | PATCH | `/admin/partidos/{id}/logo` | Fijar a mano `logo_url`, `logo_license`, `logo_author`, `logo_source_url` |
 
@@ -169,6 +170,9 @@ apellidos al padrón. La Cámara no publica la asistencia ni los temas de las se
 **Gastos**: la Cámara no los entrega por API (solo fichas por diputado y mes en camara.cl, que bloquean accesos
 automáticos). Se cargan desde un CSV: ver `app/gastos.py`, `deploy/gastos/plantilla.csv` y la solicitud por Ley de
 Transparencia en `docs/solicitud_transparencia_gastos.md`.
+Mientras tanto se usa el total del período por diputado de **Congreso Visible** (congresovisible.cl, licencia
+CC BY 4.0: hay que citarlo): dieta, gastos operacionales, personal de apoyo y asesorías externas, sin pasajes.
+Está en `app/data/gastos_congresovisible.json` y se carga con `python -m app.cli gastos-resumen`.
 
 Errores: `404` si la Cámara no tiene el dato, `502` si la Cámara no responde o rechaza los parámetros.
 

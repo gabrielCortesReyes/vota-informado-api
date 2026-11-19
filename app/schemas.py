@@ -483,6 +483,20 @@ class GastoMes(BaseModel):
     categorias: list[GastoCategoria]
 
 
+class GastoResumenOut(BaseModel):
+    total: int
+    meses: int
+    promedio_mensual: int
+    incluye: Optional[str] = None
+    url_ficha: Optional[str] = None
+    fuente: str
+    atribucion: Optional[str] = None
+    licencia: Optional[str] = None
+    licencia_url: Optional[str] = None
+    metodologia_url: Optional[str] = None
+    datos_al: Optional[datetime] = None
+
+
 class GastosParlamentarioOut(BaseModel):
     parlamentario_id: int
     total: int
@@ -492,6 +506,7 @@ class GastosParlamentarioOut(BaseModel):
     hasta: Optional[str] = None
     actualizado: Optional[datetime] = None
     fuente_url: Optional[str] = None
+    resumen: Optional[GastoResumenOut] = Field(None, description="Total del período de otra fuente (sin desglose)")
     nota: str = ("La Cámara publica los gastos operacionales con dos meses de desfase. "
                  "Fuente: Transparencia Activa, camara.cl.")
 
@@ -502,3 +517,20 @@ class GastoRankingItem(BaseModel):
     total: int
     meses: int
     promedio_mensual: int
+    url_ficha: Optional[str] = None
+
+
+class GastoRankingOut(BaseModel):
+    origen: Literal["detalle", "resumen"] = Field(description="detalle: suma de los meses cargados; resumen: total de otra fuente")
+    incluye: Optional[str] = None
+    fuente: Optional[str] = None
+    atribucion: Optional[str] = None
+    licencia: Optional[str] = None
+    licencia_url: Optional[str] = None
+    datos_al: Optional[datetime] = None
+    items: list[GastoRankingItem]
+
+
+class GastosResumenImportOut(BaseModel):
+    cargados: int
+    sin_identificar: list[str] = []

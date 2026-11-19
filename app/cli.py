@@ -6,6 +6,8 @@
   python -m app.cli proyectos [AAAA] [--limite N]  Carga proyectos de ley con sus materias y autores
   python -m app.cli comisiones [AAAA]              Carga comisiones, integrantes y sesiones del año
   python -m app.cli gastos archivo.csv [fuente]    Carga gastos de transparencia desde un CSV (ver app/gastos.py)
+  python -m app.cli gastos-resumen [archivo.json]   Carga totales por diputado (Congreso Visible; por defecto
+                                                   app/data/gastos_congresovisible.json)
   python -m app.cli admin correo@ejemplo.cl         Da rol de administrador a un usuario
 """
 import asyncio
@@ -46,6 +48,11 @@ def main(args: list[str]) -> None:
             except UnicodeDecodeError:
                 texto = crudo.decode("latin-1")
             print(gastos.importar(db, gastos.leer_csv(texto), fuente=args[2] if len(args) > 2 else args[1]))
+        elif args[:1] == ["gastos-resumen"]:
+            import json
+            from pathlib import Path
+            ruta = Path(args[1]) if len(args) > 1 else Path(__file__).parent / "data" / "gastos_congresovisible.json"
+            print(gastos.importar_resumen(db, json.loads(ruta.read_text(encoding="utf-8"))))
         elif args[:1] == ["admin"] and len(args) == 2:
             cred = db.query(UserCredentials).filter(UserCredentials.username == args[1].lower()).first()
             if not cred:

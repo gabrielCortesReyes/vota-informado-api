@@ -69,9 +69,11 @@ def test_gastos(api, admin):
 
     # ranking de traslación
     rk = api.get("/gastos/diputados", params={"categoria": "traslación"}).json()
+    assert rk["origen"] == "detalle"
+    rk = rk["items"]
     assert [(f["parlamentario"]["external_id"], f["total"], f["meses"]) for f in rk] == [(1009, 3494271, 1), (1010, 1500000, 2)]
     assert rk[1]["promedio_mensual"] == 750_000
-    assert api.get("/gastos/diputados", params={"orden": "asc"}).json()[0]["parlamentario"]["external_id"] == 1010
+    assert api.get("/gastos/diputados", params={"orden": "asc"}).json()["items"][0]["parlamentario"]["external_id"] == 1010
     assert api.get("/gastos/periodos").json() == [{"periodo": "2026-09", "diputados": 1}, {"periodo": "2026-08", "diputados": 2}]
     assert api.get("/gastos/categorias").json()[0] == {"tipo": "operacionales", "categoria": "TRASLACIÓN", "monto": 4994271}
 
@@ -87,3 +89,40 @@ def test_gastos(api, admin):
 
     juan = api.get("/parlamentarios", params={"camara": "senador"}).json()[0]["id"]
     assert api.get(f"/parlamentarios/{juan}/gastos").status_code == 404
+
+
+RESUMEN = {
+    "dataset": "gastos", "datosAl": "2026-11-19T13:37:33Z", "metodologia": "https://congresovisible.cl/metodologia",
+    "licencia": "CC BY 4.0", "licenciaUrl": "https://creativecommons.org/licenses/by/4.0/deed.es",
+    "atribucion": "Congreso Visible (congresovisible.cl)", "fuente": "Cámara de Diputadas y Diputados (camara.cl)",
+    "registros": [
+        {"nombre": "Ana Pérez", "gasto_total_clp": 160000000, "meses_publicados": 8,
+         "url_ficha": "https://congresovisible.cl/parlamentarios/ana-perez"},
+        {"nombre": "Luis Muñoz", "gasto_total_clp": 120000000, "meses_publicados": 8},
+        {"nombre": "Nadie Conocido", "gasto_total_clp": 1, "meses_publicados": 8},
+    ],
+}
+
+
+def test_gastos_resumen(api, admin):
+    r = api.post("/admin/gastos/resumen", json=RESUMEN, headers=admin)
+    assert r.status_code == 200, r.text
+    assert r.json() == {"cargados": 2, "sin_identificar": ["Nadie Conocido"]}
+    sin_atribucion = {k: v for k, v in RESUMEN.items() if k not in ("atribucion", "fuente")}
+    assert api.post("/admin/gastos/resumen", json=sin_atribucion, headers=admin).status_code == 422
+
+    ana = api.get(f"/parlamentarios/{_id(1009)}/gastos").json()["resumen"]
+    assert (ana["total"], ana["meses"], ana["promedio_mensual"]) == (160000000, 8, 20000000)
+    assert ana["atribucion"] == "Congreso Visible (congresovisible.cl)" and ana["licencia"] == "CC BY 4.0"
+    assert "Dieta" in ana["incluye"] and ana["url_ficha"].endswith("ana-perez")
+
+    # sin categoría ni período el ranking usa el total del período; con categoría, el detalle mensual
+    rk = api.get("/gastos/diputados").json()
+    assert rk["origen"] == "resumen" and rk["atribucion"].startswith("Congreso Visible")
+    assert [(f["parlamentario"]["external_id"], f["total"]) for f in rk["items"]] == [(1009, 160000000), (1010, 120000000)]
+    assert api.get("/gastos/diputados", params={"categoria": "TRASLACIÓN"}).json()["origen"] == "detalle"
+
+    # si casi nadie calza, no se carga nada
+    mal = {**RESUMEN, "registros": [{"nombre": "X Y", "gasto_total_clp": 1, "meses_publicados": 1}]}
+    assert api.post("/admin/gastos/resumen", json=mal, headers=admin).status_code == 422
+    assert api.get("/gastos/diputados").json()["origen"] == "resumen"
